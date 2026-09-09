@@ -1,0 +1,9 @@
+jupyterlab
+jupyterlab_widgets
+ipywidgets
+matplotlib
+pytorch-lightning==2.2.0
+smart-open==6.4.0
+torch==2.6.0
+torchvision==0.21.0
+setuptools<82  # hopefully temporary; newer setuptools drops pkg_resources, which lightning_fabric still needs
