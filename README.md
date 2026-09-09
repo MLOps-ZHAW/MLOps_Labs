@@ -7,17 +7,17 @@ This is the repository for the labs/tutorials of a course about Machine Learning
 ## Table of Contents
 
 | Lab No. | Contents | Tools | Link |
-| ---- | -------- | ----- | ---- |
-|   1  | Deep Learning Recap | PyTorch, CNNs, Transformers | [Lab 01](lab01/README.md) |
-|   2  | Prompt engineering a chatbot  | 🤗Transformers, Streamlit | [Lab 02](lab02/README.md) |
-|   3  | Experiment management and hyperparameter tuning | MLflow, Ray Tune | [Lab 03](lab03/README.md) |
-|   4  | CI/CD  and testing for code and models | GitHub Actions, PyTest, DeepChecks (CML, SkyPilot) | [Lab 04](lab01/README.md) |
-|   5  | From notebooks to pipelines to batch processing | Ploomber, Airflow | [Lab 05](lab05/README.md) |
-|   6  | Data-centric MLOps | Git LFS, DVC, Albumentations, 🤗Diffusers | [Lab 06](lab06/README.md) |
-|   7  | Deploying and protecting machine learning models | MLServer, Alibi Detect | [Lab 07](lab07/README.md) |
-|      | Creating a (shared) VM in GCP | Google Cloud |  [GCP](GCP/README.md) |
-|      | Vertex AI tutorial | Google cloud Vertex AI | [VertexAI](VertexAI/README.md) |
-|      | Example showing how to use python packages with Jupyter Notebooks | Jupyter | [Sample](sample/readme.md)
+| ------- | -------- | ----- | ---- |
+| 1 | Deep Learning Recap | PyTorch, CNNs, Transformers | [Lab 01](lab01/README.md) |
+| 2 | Prompt engineering a chatbot | 🤗 Transformers, Streamlit | [Lab 02](lab02/README.md) |
+| 3 | Experiment management and hyperparameter tuning | MLflow, Ray Tune | [Lab 03](lab03/README.md) |
+| 4 | CI/CD and testing for code and models | GitHub Actions, pytest, Deepchecks, CML | [Lab 04](lab04/README.md) |
+| 5 | From notebooks to pipelines to batch processing | Ploomber, Airflow | [Lab 05](lab05/README.md) |
+| 6 | Data-centric MLOps | Git LFS, DVC, Albumentations, 🤗 Diffusers | [Lab 06](lab06/README.md) |
+| 7 | Deploying and protecting machine learning models | MLServer, Alibi Detect | [Lab 07](lab07/README.md) |
+| | Creating a (shared) VM in GCP | Google Cloud | [GCP](GCP/README.md) |
+| | Vertex AI tutorial | Google Cloud Vertex AI | [VertexAI](VertexAI/README.md) |
+| | Example showing how to use Python packages with Jupyter Notebooks | Jupyter | [Sample](sample/readme.md) |
 
 ## Setup
 
@@ -29,7 +29,7 @@ Finally, it is a good idea to install [Docker Desktop](https://www.docker.com/pr
 
 ### Creating environments with `conda`
 
-Once you have conda installed, you can create an environment from a `env.yaml` file using the following command:
+Once you have conda installed, navigate to the lab directory (for example, `cd lab01`) and create its environment from the `env.yaml` file:
 
 ```shell
 conda env create -f env.yaml
@@ -61,7 +61,7 @@ Images sometimes do not render correctly in Colab, and some features might not w
 To run notebooks locally, proceed as follows:
 
 1. Open a terminal and navigate to the lab directory (e.g. `cd lab01`).
-2. Activate the conda environment for this lab (see above e.g. e.g. `conda activate mlops-lab-01`).
+2. Activate the conda environment for this lab (for example, `conda activate mlops-lab-01`).
 3. Run `jupyter lab`. This will result in output similar to the following:
 
 ```shell
@@ -73,26 +73,56 @@ To run notebooks locally, proceed as follows:
         http://127.0.0.1:8888/lab?token=token
 ```
 
-4. Click on or copy the link and past it in your browser.
-5. Now, click on the jupyter notebook of your liking.
+4. Click on the link or copy and paste it into your browser.
+5. Click on the Jupyter notebook you want to open.
 
 #### Running in Google Colab
 
 1. Clone or download this repository.
 2. Navigate your browser to [colab.research.google.com](colab.research.google.com).
-3. In the menu, select `File > Upload notebook`
-![Colab menu](imgs/colab_menu.png)
-4. Select the notebook you want to open.
-5. Once your notebook is open, add a code cell at the very top. You can do this, by hovering your cursor over the top of the notebook until the `Code` and `Text` buttons appear as shown in the image below:
-![Colab hover](imgs/colab_hover.png)
-6. In the code cell, add the following:
+3. In the menu, select `File > Upload notebook`.
 
-```shell
-!git clone https://github_pat_[PAT]@github.com/MLOps-ZHAW/MLOps_Labs
+     <p align="center">
+         <img src="imgs/colab_menu.png" alt="Colab File menu" width="500">
+     </p>
+
+4. Select the notebook you want to open.
+5. Once your notebook is open, add a code cell at the very top by hovering over the top of the notebook until the `Code` and `Text` buttons appear.
+
+     <p align="center">
+         <img src="imgs/colab_hover.png" alt="Colab Code and Text buttons" width="500">
+     </p>
+6. In the code cell, clone the repository and change to the notebook directory. If the repository is public, use:
+
+```python
+!git clone https://github.com/MLOps-ZHAW/MLOps_Labs.git
 %cd MLOps_Labs/[path/to/notebook]
 ```
 
-where `[PAT]` is a Github Access Token (looks like `gitgub_pat_.....`, your lecturer will tell you), and you replace `[path/to/notebook]` with the path to the jupyter notebook you just opened. For instance, if you opened `lab01a_01_tensor_tutorial.ipynb`, the statement would become `%cd MLOps_Labs/lab01`.
+Replace `[path/to/notebook]` with the path to the Jupyter notebook you just opened. For instance, if you opened `lab01a_01_tensor_tutorial.ipynb`, the statement would become `%cd MLOps_Labs/lab01`.
+
+If the repository is private, create a Colab Secret named `GH_TOKEN` containing a GitHub fine-grained access token with repository read access, then use this instead of the first command above. Do not put the token directly in a notebook or URL:
+
+```python
+from google.colab import userdata
+import subprocess
+
+token = userdata.get("GH_TOKEN")
+subprocess.run(
+    [
+        "git",
+        "-c",
+        f"http.extraHeader=AUTHORIZATION: bearer {token}",
+        "clone",
+        "https://github.com/MLOps-ZHAW/MLOps_Labs.git",
+    ],
+    check=True,
+)
+%cd MLOps_Labs/[path/to/notebook]
+```
 
 7. Connect to a GPU by changing the runtime type:
-   ![Change Colab runtime](imgs/colab_change_runtime_type.png)
+
+    <p align="center">
+      <img src="imgs/colab_change_runtime_type.png" alt="Colab Change runtime type menu" width="500">
+    </p>
