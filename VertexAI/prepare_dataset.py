@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pandas_gbq
 from datasets import load_dataset
 from google.cloud import bigquery
 from google.oauth2 import service_account
@@ -37,10 +38,12 @@ if __name__ == "__main__":
     service_account_file = "/app/credential.json"
     credentials = service_account.Credentials.from_service_account_file(service_account_file)
     client = bigquery.Client(project=project_id, credentials=credentials, location=location)
-    df.to_gbq(
+    pandas_gbq.to_gbq(
+        df,
         project_id=project_id,
         destination_table=f"{config['dataset_id']}.{config['table_id']}",
         location=location,
         if_exists="replace",
         credentials=credentials,
+        bigquery_client=client,
     )
