@@ -89,6 +89,12 @@ Run this from a checkout of this repository so the relative path to `vm-startup.
 
 **0.5 Connect to your VM.** In the console, go to **Compute Engine → VM instances**, find `mlops-tutorial-vm`, and click the **SSH** button next to it. This opens a full terminal in a browser tab - nothing to install locally. (Give the VM a minute or two after creation for the startup script to finish installing everything before you connect.)
 
+> If you already have `gcloud` installed locally and would rather use a regular terminal than the browser tab, you can connect the same way with:
+> ```bash
+> gcloud compute ssh mlops-tutorial-vm --zone=us-central1-a
+> ```
+> The first time you run this, `gcloud` generates an SSH key pair and pushes it to the VM for you - no manual key setup needed.
+
 **0.6 One-time setup inside the VM**, right after your first connection:
 ```bash
 sudo usermod -aG docker $USER
@@ -97,6 +103,7 @@ Then close this SSH tab and click "SSH" again to reconnect (group membership onl
 
 **0.7 Get this repository onto the VM and authenticate `gcloud`:**
 ```bash
+sudo apt-get update && sudo apt-get install -y git   # in case the startup script hasn't finished yet
 git clone <the URL your instructor gave you for this repository>
 cd <repo-name>/VertexAI
 gcloud auth login
@@ -340,3 +347,4 @@ gcloud projects delete <your-project-id>
 - **"Permission denied" errors**: double-check you ran the `add-iam-policy-binding` commands in step 1.4 against the exact service account email, and that `credential.json` in `config.json`'s directory matches that same service account.
 - **`gcloud builds submit` fails with a repository/permission error**: make sure step 1.6 (Artifact Registry repo) succeeded, and that your own `gcloud auth login` user (not the service account) has permission to submit Cloud Builds and push images - if you're the project Owner, you already do.
 - **Pipeline stuck/failed in the console**: click into the failing step to see its logs; most first-run failures are a missing API (Part 1.2), a missing IAM role (Part 1.4), or a bucket/dataset name typo in `config.json`.
+- **`git`, `docker`, `jq`, or `gcloud` missing on the tutorial VM**: the startup script (Part 0.4) either hadn't finished yet when you connected (wait a minute after creating the VM, or check with `sudo journalctl -u google-startup-scripts.service`), or wasn't attached to the VM at all (double-check you pasted `vm-startup.sh`'s contents into the startup-script field, or used `--metadata-from-file` in the `gcloud` command). Either way, you can always install the missing piece by hand, e.g. `sudo apt-get update && sudo apt-get install -y git jq docker.io google-cloud-cli`.
