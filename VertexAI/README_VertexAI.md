@@ -1,4 +1,4 @@
-# MLOps Pipeline by Vertex AI
+# MLOps Pipeline by Gemini Enterprise Agent Platform (formerly Vertex AI)
 
 A beginner-friendly, step-by-step walkthrough for training and deploying a text-classification model on Google Cloud - no prior Google Cloud or Vertex AI experience required.
 
@@ -12,9 +12,58 @@ This tutorial uses real, billable Google Cloud resources. Training is a one-off 
 
 If you're on a new Google account, Google Cloud's free trial credit is generally enough to complete this tutorial.
 
-## Do I need anything installed on my own computer?
+## Prerequisite: create and connect to a Cloud VM
 
-No. Every command in this tutorial runs either in your browser (the Google Cloud Console) or inside a small Google Cloud VM that Part 0 sets up for you, with Docker, Docker Compose, `git`, `jq`, and `gcloud` already installed on it via a startup script. You connect to that VM through a browser-based SSH session - nothing to install, and no admin rights needed on your own Windows/Mac/Linux machine. If you'd rather use your own machine instead (e.g. you already have Docker installed), see the [alternative: run this on your own machine](#alternative-run-this-on-your-own-machine-instead) section at the end of Part 0.
+You can do everything below two ways: through the website at [console.cloud.google.com](https://console.cloud.google.com) - called **"the console"** below - or with the `gcloud` CLI installed on your own machine ([install instructions](https://cloud.google.com/sdk/docs/install)) - log in afterwards with `gcloud init` the first time, or just `gcloud auth login` after that. Steps below show the console first, with the equivalent `gcloud` command underneath where one exists.
+
+Everything in this tutorial runs from one small Google Cloud VM that you set up once and access entirely through your browser - nothing to install on your own Windows/Mac/Linux machine, and no admin rights needed. Get this working before Part 1, so the actual project below stays about MLOps, not infrastructure.
+
+**1. Create a Google Cloud account.** Go to [console.cloud.google.com](https://console.cloud.google.com) and sign in with a Google account. New accounts get free trial credit.
+
+**2. Create a project.** In the console, use the project picker at the top of the page → "New Project". Or via CLI:
+```bash
+gcloud projects create <your-project-id> --name="MLOps Tutorial"
+```
+`<your-project-id>` must be globally unique - e.g. `yourname-mlops-tutorial`. You'll use this exact string as `project_id` later.
+
+**3. Enable billing.** In the console: Billing → link a billing account to your new project. This step can only be done in the console, not via a simple CLI command, since it requires choosing/creating a billing account.
+
+**4. Enable the Compute Engine API and create the VM.** In the console, search for "Compute Engine API" → Enable. (The first time you do this in a fresh project, it can take a minute.)
+
+Then create the VM. Easiest via the console:
+1. Go to **Compute Engine → VM instances → Create Instance**.
+2. Give it a name, e.g. `mlops-tutorial-vm`.
+3. Region/zone: this tutorial keeps everything in **europe-north1 (Finland)**, so set **Region** to `europe-north1` and **Zone** to `europe-north1-c`.
+4. Machine type: `e2-medium` is plenty - this VM only submits jobs and runs small scripts; the actual training happens on Vertex AI's own infrastructure, not on this VM (see [How it works](#how-it-works-short-version) below).
+5. Boot disk: click "Change", choose **Debian GNU/Linux 12 (bookworm)**, and set the size to **30 GB** (the default 10 GB is tight once Docker images are involved).
+6. Expand "Advanced options" → "Management" → find the **"Automation" / "Startup script"** box, and paste in the contents of [`vm-startup.sh`](vm-startup.sh) from this repository.
+7. Click "Create".
+
+Or, if you'd rather run one command (e.g. from [Cloud Shell](https://console.cloud.google.com) - click the `>_` icon in the console toolbar, no install needed for this either):
+```bash
+gcloud services enable compute.googleapis.com
+gcloud compute instances create mlops-tutorial-vm \
+    --zone=europe-north1-c \
+    --machine-type=e2-medium \
+    --image-family=debian-12 \
+    --image-project=debian-cloud \
+    --boot-disk-size=30GB \
+    --metadata-from-file=startup-script=vm-startup.sh
+```
+Run this from a checkout of this repository so the relative path to `vm-startup.sh` resolves (or point `--metadata-from-file` at wherever you saved it).
+
+**5. Connect to your VM - two ways:**
+
+- **A) From your browser:** in the console, go to **Compute Engine → VM instances**, find `mlops-tutorial-vm`, and click the **SSH** button next to it. This opens a full terminal in a browser tab - nothing to install locally. (Give the VM a minute or two after creation for the startup script to finish installing everything before you connect.)
+- **B) From your local shell:** if you already have [`gcloud`](https://cloud.google.com/sdk/docs/install) installed on your own machine and would rather use a regular terminal than the browser tab, first point it at your project (a fresh local install doesn't know which one to use yet, unlike a browser session):
+  ```bash
+  gcloud config set project <your-project-id>
+  gcloud compute ssh mlops-tutorial-vm --zone=europe-north1-c
+  ```
+  The first time you run this, `gcloud` generates an SSH key pair and pushes it to the VM for you - no manual key setup needed.
+
+> #### Alternative: run this on your own machine instead
+> If you'd rather not use a VM at all, you can run everything locally: install the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) (`gcloud init && gcloud auth login`), [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose), and `jq` (`apt install jq` / `brew install jq` / [jqlang.org](https://jqlang.org/download/)), then continue with Part 0 below from a local clone of this repository. Everything below works identically either way.
 
 ## Glossary
 
@@ -48,60 +97,17 @@ See the [Model serving container](#model-serving-container) section near the end
 
 ---
 
-## Part 0: One-time Google Cloud account setup
+## Part 0: One-time setup inside your VM
 
-Skip any step you've already done.
+This assumes you've already created and connected to your VM (or your own machine) per the [Prerequisite](#prerequisite-create-and-connect-to-a-cloud-vm) above. Skip any step you've already done.
 
-**0.1 Create a Google Cloud account.** Go to [console.cloud.google.com](https://console.cloud.google.com) and sign in with a Google account. New accounts get free trial credit.
-
-**0.2 Create a project.** In the console, use the project picker at the top of the page → "New Project". Or via CLI:
-```bash
-gcloud projects create <your-project-id> --name="VertexAI Tutorial"
-```
-`<your-project-id>` must be globally unique - e.g. `yourname-vertexai-tutorial`. You'll use this exact string as `project_id` later.
-
-**0.3 Enable billing.** In the console: Billing → link a billing account to your new project. This step can only be done in the console, not via a simple CLI command, since it requires choosing/creating a billing account.
-
-**0.4 Create your tutorial VM.** This is the one Linux machine everything else in this tutorial runs from - Docker, Docker Compose, `git`, `jq`, and `gcloud` all get installed on it automatically, and you'll connect to it entirely through your browser. This is the recommended path regardless of whether you're on Windows, Mac, or Linux, or whether you're an admin on your own machine.
-
-First, enable the Compute Engine API. In the console, search for "Compute Engine API" → Enable. (The first time you do this in a fresh project, it can take a minute.)
-
-Then create the VM. Easiest via the console:
-1. Go to **Compute Engine → VM instances → Create Instance**.
-2. Give it a name, e.g. `mlops-tutorial-vm`.
-3. Machine type: `e2-medium` is plenty - this VM only submits jobs and runs small scripts; the actual training happens on Vertex AI's own infrastructure, not on this VM (see [How it works](#how-it-works-short-version) above).
-4. Boot disk: click "Change", choose **Debian GNU/Linux 12 (bookworm)**, and set the size to **30 GB** (the default 10 GB is tight once Docker images are involved).
-5. Expand "Advanced options" → "Management" → find the **"Automation" / "Startup script"** box, and paste in the contents of [`vm-startup.sh`](vm-startup.sh) from this repository.
-6. Click "Create".
-
-Or, if you'd rather run one command (e.g. from [Cloud Shell](https://console.cloud.google.com) - click the `>_` icon in the console toolbar, no install needed for this either):
-```bash
-gcloud services enable compute.googleapis.com
-gcloud compute instances create mlops-tutorial-vm \
-    --zone=us-central1-a \
-    --machine-type=e2-medium \
-    --image-family=debian-12 \
-    --image-project=debian-cloud \
-    --boot-disk-size=30GB \
-    --metadata-from-file=startup-script=vm-startup.sh
-```
-Run this from a checkout of this repository so the relative path to `vm-startup.sh` resolves (or point `--metadata-from-file` at wherever you saved it).
-
-**0.5 Connect to your VM.** In the console, go to **Compute Engine → VM instances**, find `mlops-tutorial-vm`, and click the **SSH** button next to it. This opens a full terminal in a browser tab - nothing to install locally. (Give the VM a minute or two after creation for the startup script to finish installing everything before you connect.)
-
-> If you already have `gcloud` installed locally and would rather use a regular terminal than the browser tab, you can connect the same way with:
-> ```bash
-> gcloud compute ssh mlops-tutorial-vm --zone=us-central1-a
-> ```
-> The first time you run this, `gcloud` generates an SSH key pair and pushes it to the VM for you - no manual key setup needed.
-
-**0.6 One-time setup inside the VM**, right after your first connection:
+**0.1 One-time setup inside the VM**, right after your first connection:
 ```bash
 sudo usermod -aG docker $USER
 ```
 Then close this SSH tab and click "SSH" again to reconnect (group membership only applies to new sessions). From now on `docker` and `gcloud` commands work directly, without `sudo`.
 
-**0.7 Get this repository onto the VM and authenticate `gcloud`:**
+**0.2 Get this repository onto the VM and authenticate `gcloud`:**
 ```bash
 sudo apt-get update && sudo apt-get install -y git   # in case the startup script hasn't finished yet
 git clone <the URL your instructor gave you for this repository>
@@ -109,9 +115,6 @@ cd <repo-name>/VertexAI
 gcloud auth login
 ```
 `gcloud auth login` will print a URL - open it in any browser (your phone is fine), log in, and paste the resulting code back into the terminal. Everything from Part 1 onward runs from inside this `VertexAI/` directory, in this same SSH session.
-
-> #### Alternative: run this on your own machine instead
-> If you'd rather not use a VM, you can run everything locally: install the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) (`gcloud init && gcloud auth login`), [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose), and `jq` (`apt install jq` / `brew install jq` / [jqlang.org](https://jqlang.org/download/)), then continue with Part 1 from a local clone of this repository. Everything below works identically either way.
 
 ---
 
@@ -160,13 +163,13 @@ Run this from inside the `VertexAI/` directory so the file lands at `VertexAI/cr
 ```bash
 gcloud artifacts repositories create repo-vertexai \
     --repository-format=docker \
-    --location=us-central1
+    --location=europe-north1
 ```
 (If you use a different `region` or `repository_name` in your `config.json` below, use those values here instead.)
 
 **1.7 Create a Cloud Storage bucket** for the pipeline's working files (Vertex AI Pipelines needs somewhere to stage inputs/outputs between steps):
 ```bash
-gcloud storage buckets create gs://<your-bucket-name> --location=us-central1
+gcloud storage buckets create gs://<your-bucket-name> --location=europe-north1
 ```
 Bucket names must be globally unique, so pick something like `<your-project-id>-vertexai-tutorial`.
 
@@ -178,8 +181,8 @@ Then edit `config.json` and fill in the values you just created:
 
 | Field | Value |
 |---|---|
-| `project_id` | Your project ID from step 0.2 |
-| `region` | `us-central1` (or whatever you used above - keep it consistent everywhere) |
+| `project_id` | Your project ID from Prerequisite step 2 |
+| `region` | `europe-north1` (or whatever you used above - keep it consistent everywhere) |
 | `bucket_name` | The bucket name from step 1.7 (without the `gs://` prefix) |
 | `dataset_id` | Any name you like, e.g. `vertexai_test_dataset` - BigQuery will create it automatically when data is first written |
 | `table_id` | Any name you like, e.g. `text_classification_data` |
@@ -295,20 +298,20 @@ The deployed endpoint bills for compute time as long as it exists, whether or no
 
 ```bash
 # 1. Undeploy the model from the endpoint, then delete the endpoint
-gcloud ai endpoints list --region=us-central1
-gcloud ai endpoints undeploy-model <ENDPOINT_ID> --deployed-model-id=<DEPLOYED_MODEL_ID> --region=us-central1
-gcloud ai endpoints delete <ENDPOINT_ID> --region=us-central1
+gcloud ai endpoints list --region=europe-north1
+gcloud ai endpoints undeploy-model <ENDPOINT_ID> --deployed-model-id=<DEPLOYED_MODEL_ID> --region=europe-north1
+gcloud ai endpoints delete <ENDPOINT_ID> --region=europe-north1
 
 # 2. Delete the uploaded model
-gcloud ai models list --region=us-central1
-gcloud ai models delete <MODEL_ID> --region=us-central1
+gcloud ai models list --region=europe-north1
+gcloud ai models delete <MODEL_ID> --region=europe-north1
 
-# 3. If you created a tutorial VM (Part 0.4), delete it too - it bills for
+# 3. If you created a tutorial VM (Prerequisite, step 4), delete it too - it bills for
 #    uptime the same way the endpoint does, and isn't needed once you're done
-gcloud compute instances delete mlops-tutorial-vm --zone=us-central1-a
+gcloud compute instances delete mlops-tutorial-vm --zone=europe-north1-c
 
 # 4. Optional - remove the other resources you created if you don't plan to reuse them
-gcloud artifacts repositories delete repo-vertexai --location=us-central1
+gcloud artifacts repositories delete repo-vertexai --location=europe-north1
 gcloud storage rm -r gs://<your-bucket-name>
 ```
 `<ENDPOINT_ID>`, `<DEPLOYED_MODEL_ID>`, and `<MODEL_ID>` come from the `list` commands above (or from the console under Vertex AI → Endpoints / Models). Since deleting the VM ends your SSH session, run steps 1-2 (and any other cleanup) *before* step 3, or just do step 3 from Cloud Shell / the console instead.
@@ -347,4 +350,4 @@ gcloud projects delete <your-project-id>
 - **"Permission denied" errors**: double-check you ran the `add-iam-policy-binding` commands in step 1.4 against the exact service account email, and that `credential.json` in `config.json`'s directory matches that same service account.
 - **`gcloud builds submit` fails with a repository/permission error**: make sure step 1.6 (Artifact Registry repo) succeeded, and that your own `gcloud auth login` user (not the service account) has permission to submit Cloud Builds and push images - if you're the project Owner, you already do.
 - **Pipeline stuck/failed in the console**: click into the failing step to see its logs; most first-run failures are a missing API (Part 1.2), a missing IAM role (Part 1.4), or a bucket/dataset name typo in `config.json`.
-- **`git`, `docker`, `jq`, or `gcloud` missing on the tutorial VM**: the startup script (Part 0.4) either hadn't finished yet when you connected (wait a minute after creating the VM, or check with `sudo journalctl -u google-startup-scripts.service`), or wasn't attached to the VM at all (double-check you pasted `vm-startup.sh`'s contents into the startup-script field, or used `--metadata-from-file` in the `gcloud` command). Either way, you can always install the missing piece by hand, e.g. `sudo apt-get update && sudo apt-get install -y git jq docker.io google-cloud-cli`.
+- **`git`, `docker`, `jq`, or `gcloud` missing on the tutorial VM**: the startup script (Prerequisite, step 4) either hadn't finished yet when you connected (wait a minute after creating the VM, or check with `sudo journalctl -u google-startup-scripts.service`), or wasn't attached to the VM at all (double-check you pasted `vm-startup.sh`'s contents into the startup-script field, or used `--metadata-from-file` in the `gcloud` command). Either way, you can always install the missing piece by hand, e.g. `sudo apt-get update && sudo apt-get install -y git jq docker.io google-cloud-cli`.
