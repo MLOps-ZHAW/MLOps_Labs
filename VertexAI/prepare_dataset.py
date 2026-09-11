@@ -12,7 +12,7 @@ from google.oauth2 import service_account
 
 if __name__ == "__main__":
     size = 2000
-    dataset = load_dataset("ag_news")
+    dataset = load_dataset("fancyzhx/ag_news")
     subset = dataset["train"].select(range(size))
     df = pd.DataFrame(subset)
 

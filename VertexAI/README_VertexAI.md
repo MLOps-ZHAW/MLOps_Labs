@@ -14,6 +14,8 @@ If you're on a new Google account, Google Cloud's free trial credit is generally
 
 ## Prerequisite: create and connect to a Cloud VM
 
+Everything below could just as well run directly on your own laptop - but to avoid OS-specific dependency issues, and as a bit of extra hands-on practice, this tutorial has you create a small Google Cloud VM instead and run everything from there.
+
 You can do everything below two ways: through the website at [console.cloud.google.com](https://console.cloud.google.com) - called **"the console"** below - or with the `gcloud` CLI installed on your own machine ([install instructions](https://cloud.google.com/sdk/docs/install)) - log in afterwards with `gcloud init` the first time, or just `gcloud auth login` after that. Steps below show the console first, with the equivalent `gcloud` command underneath where one exists.
 
 Everything in this tutorial runs from one small Google Cloud VM that you set up once and access entirely through your browser - nothing to install on your own Windows/Mac/Linux machine, and no admin rights needed. Get this working before Part 1, so the actual project below stays about MLOps, not infrastructure.
@@ -110,8 +112,8 @@ Then close this SSH tab and click "SSH" again to reconnect (group membership onl
 **0.2 Get this repository onto the VM and authenticate `gcloud`:**
 ```bash
 sudo apt-get update && sudo apt-get install -y git   # in case the startup script hasn't finished yet
-git clone <the URL your instructor gave you for this repository>
-cd <repo-name>/VertexAI
+git clone https://github.com/MLOps-ZHAW/MLOps_Labs.git
+cd MLOps_Labs/VertexAI
 gcloud auth login
 ```
 `gcloud auth login` will print a URL - open it in any browser (your phone is fine), log in, and paste the resulting code back into the terminal. Everything from Part 1 onward runs from inside this `VertexAI/` directory, in this same SSH session.
@@ -120,9 +122,10 @@ gcloud auth login
 
 ## Part 1: Configure this project
 
-**1.1 Point `gcloud` at your project:**
+**1.1 Point `gcloud` at your project.** Set it once as a variable here, and every later step in Part 1 reuses it:
 ```bash
-gcloud config set project <your-project-id>
+PROJECT_ID=<your-project-id>
+gcloud config set project $PROJECT_ID
 ```
 
 **1.2 Enable the APIs this pipeline uses:**
@@ -143,19 +146,19 @@ Its full email will be `vertexai-tutorial@<your-project-id>.iam.gserviceaccount.
 
 **1.4 Grant it the permissions it needs:**
 ```bash
-SA="vertexai-tutorial@<your-project-id>.iam.gserviceaccount.com"
+SA="vertexai-tutorial@$PROJECT_ID.iam.gserviceaccount.com"
 
-gcloud projects add-iam-policy-binding <your-project-id> --member="serviceAccount:$SA" --role="roles/aiplatform.user"
-gcloud projects add-iam-policy-binding <your-project-id> --member="serviceAccount:$SA" --role="roles/bigquery.dataEditor"
-gcloud projects add-iam-policy-binding <your-project-id> --member="serviceAccount:$SA" --role="roles/bigquery.jobUser"
-gcloud projects add-iam-policy-binding <your-project-id> --member="serviceAccount:$SA" --role="roles/storage.objectAdmin"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/aiplatform.user"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/bigquery.dataEditor"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/bigquery.jobUser"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/storage.objectAdmin"
 ```
 (These are broad roles, fine for a personal learning project. In a real production project you'd scope them down.)
 
 **1.5 Download a key file for the service account** - this becomes `credential.json`, which the containers use to authenticate:
 ```bash
 gcloud iam service-accounts keys create credential.json \
-    --iam-account=vertexai-tutorial@<your-project-id>.iam.gserviceaccount.com
+    --iam-account=vertexai-tutorial@$PROJECT_ID.iam.gserviceaccount.com
 ```
 Run this from inside the `VertexAI/` directory so the file lands at `VertexAI/credential.json`. This file is already listed in `.gitignore` - never commit it.
 
@@ -169,9 +172,10 @@ gcloud artifacts repositories create repo-vertexai \
 
 **1.7 Create a Cloud Storage bucket** for the pipeline's working files (Vertex AI Pipelines needs somewhere to stage inputs/outputs between steps):
 ```bash
-gcloud storage buckets create gs://<your-bucket-name> --location=europe-north1
+BUCKET_NAME=<your-bucket-name>
+gcloud storage buckets create gs://$BUCKET_NAME --location=europe-north1
 ```
-Bucket names must be globally unique, so pick something like `<your-project-id>-vertexai-tutorial`.
+Bucket names must be globally unique, so pick something like `$PROJECT_ID-vertexai-tutorial`.
 
 **1.8 Create your config file:**
 ```bash
