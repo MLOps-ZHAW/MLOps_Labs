@@ -129,7 +129,6 @@ def train_model(
         per_device_eval_batch_size=64,
         warmup_steps=100,
         weight_decay=0.01,
-        logging_dir=str(Path(output_model.path) / "logs"),
         eval_strategy="epoch",
     )
     trainer = Trainer(
