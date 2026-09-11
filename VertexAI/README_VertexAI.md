@@ -151,9 +151,14 @@ SA="vertexai-tutorial@$PROJECT_ID.iam.gserviceaccount.com"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/aiplatform.user"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/bigquery.dataEditor"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/bigquery.jobUser"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/storage.objectAdmin"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/storage.admin"
+
+# Let the service account act as itself - Vertex AI Pipelines needs this explicitly
+# granted even though the SA submitting the job and the SA running it are the same one.
+gcloud iam service-accounts add-iam-policy-binding $SA \
+    --member="serviceAccount:$SA" --role="roles/iam.serviceAccountUser"
 ```
-(These are broad roles, fine for a personal learning project. In a real production project you'd scope them down.)
+(These are broad roles, fine for a personal learning project. In a real production project you'd scope them down. Note `roles/storage.admin` rather than `storage.objectAdmin` - the pipeline needs to check bucket-level metadata, e.g. whether the pipeline-root bucket exists, which `objectAdmin` alone doesn't cover.)
 
 **1.5 Download a key file for the service account** - this becomes `credential.json`, which the containers use to authenticate:
 ```bash
@@ -236,6 +241,10 @@ docker compose run mlops-v1
 This compiles the pipeline defined in `main.py` and submits it to Vertex AI Pipelines, which then runs the fetch → train → deploy steps on managed infrastructure. Training a DistilBERT model for 5 epochs on ~2000 rows typically takes **30-60 minutes**.
 
 You can watch progress in the console under Vertex AI (Gemini Enterprise Agent Platform) → Pipelines, in your project. Each step's logs are available by clicking into it.
+
+Expected result - the three pipeline steps (fetch → train → deploy) running as a DAG:
+
+![Pipeline run in the console, showing fetch-data-from-bigquery, train-model, and deploy-model steps](assets/vertex_pipeline.jpg)
 
 ---
 
