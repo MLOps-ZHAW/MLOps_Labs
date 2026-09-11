@@ -1,0 +1,8 @@
+jupyterlab
+jupyterlab_widgets
+ipywidgets
+matplotlib
+pytorch-lightning==2.6.5
+smart-open==8.0.1
+torch==2.14.0
+torchvision==0.29.0

@@ -16,12 +16,12 @@ from kfp.dsl import (
 
 @component(
     packages_to_install=[
-        "db-dtypes==1.3.0",
-        "google-cloud-bigquery==3.25.0",
-        "pandas==2.2.2",
-        "pyarrow==17.0.0",
+        "db-dtypes==1.7.1",
+        "google-cloud-bigquery==3.45.0",
+        "pandas==3.0.5",
+        "pyarrow==25.0.1",
     ],
-    base_image="python:3.12",
+    base_image="python:3.13",
 )
 def fetch_data_from_bigquery(
     project_id: str,
@@ -48,15 +48,14 @@ def fetch_data_from_bigquery(
 
 @component(
     packages_to_install=[
-        "accelerate==0.34.2",
-        "fastparquet==2024.5.0",
-        "pandas==2.2.2",
-        "pyarrow==17.0.0",
-        "scikit-learn==1.5.2",
-        "torch==2.4.1",
-        "transformers==4.44.2",
+        "accelerate==1.15.0",
+        "pandas==3.0.5",
+        "pyarrow==25.0.1",
+        "scikit-learn==1.9.0",
+        "torch==2.14.0",
+        "transformers==5.17.0",
     ],
-    base_image="python:3.12",
+    base_image="python:3.13",
 )
 def train_model(
     input_dataset: Input[Dataset],
@@ -131,7 +130,7 @@ def train_model(
         warmup_steps=100,
         weight_decay=0.01,
         logging_dir=str(Path(output_model.path) / "logs"),
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
     )
     trainer = Trainer(
         model=model,
@@ -161,8 +160,8 @@ def train_model(
 
 
 @component(
-    packages_to_install=["google-cloud-aiplatform==1.66.0"],
-    base_image="python:3.12",
+    packages_to_install=["google-cloud-aiplatform==2.1.0"],
+    base_image="python:3.13",
 )
 def deploy_model(
     project_id: str,
