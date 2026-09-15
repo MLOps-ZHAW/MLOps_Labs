@@ -342,6 +342,33 @@ Expected output looks like:
 }
 ```
 
+**Want to try your own headlines instead of the 4 hardcoded ones?** [`interactive-request.sh`](interactive-request.sh) makes the same `:predict` call as `sample-request.sh`, but prompts you for a headline, sends it, and prints back the predicted class and probabilities - then loops so you can keep trying more:
+```bash
+chmod +x interactive-request.sh
+./interactive-request.sh
+```
+```
+Type a news headline and press Enter to classify it (World / Sports / Business / Sci-Tech).
+Type 'quit' or press Ctrl+C to stop.
+
+> Local team wins championship after dramatic overtime victory
+  -> Sports
+     Sports: 97%
+     World: 2%
+     Business: 1%
+     Sci/Tech: 1%
+
+> Central bank raises interest rates to combat inflation
+  -> Business
+     Business: 90%
+     World: 8%
+     Sci/Tech: 1%
+     Sports: 1%
+
+> quit
+```
+Try headlines that straddle two categories (e.g. a sports team's stock price, or a tech company's court case) to get a feel for where the model is confident versus genuinely unsure.
+
 ---
 
 ## Part 6: Clean up (do this when you're done)
