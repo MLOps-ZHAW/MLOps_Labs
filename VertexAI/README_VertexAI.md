@@ -2,7 +2,7 @@
 
 A beginner-friendly, step-by-step walkthrough for training and deploying a text-classification model on Google Cloud - no prior Google Cloud or Vertex AI experience required.
 
-By the end, you'll have a small news-article classifier (World / Sports / Business / Sci/Tech) trained in the cloud and deployed behind a live prediction endpoint you can send text to.
+By the end, you'll have a small news-article classifier (World / Sports / Business / Sci/Tech) trained in the cloud and deployed behind a live prediction endpoint you can send text to - plus, optionally, a simple web GUI hosted on Cloud Run where you can type in a headline and see it classified in the browser.
 
 > **Naming note:** Google rebranded Vertex AI as the **Gemini Enterprise Agent Platform** at Cloud Next 2026 (the console name changed in May 2026). This does not affect anything below: the Python package (`google-cloud-aiplatform`, imported as `google.cloud.aiplatform`) and the REST API host (`{region}-aiplatform.googleapis.com`) are unchanged, and Google has committed to keeping both working. So "Vertex AI" in commands, package names, and this doc just refers to the same underlying APIs the platform still exposes under its new name.
 
@@ -33,11 +33,9 @@ A few terms come up repeatedly below - skip this if you're already familiar with
 
 ## Prerequisite: create and connect to a Cloud VM
 
-Everything below could just as well run directly on your own laptop - but to avoid OS-specific dependency issues, and as a bit of extra hands-on practice, this tutorial has you create a small Google Cloud VM instead and run everything from there.
+Everything below could just as well run directly on your own laptop - but to avoid OS-specific dependency issues, and as a bit of extra hands-on practice, this tutorial has you create a small Google Cloud VM instead, set up once and accessed entirely through your browser, and runs everything from there. (If you'd rather skip the VM, see the alternative at the end of this section.) Get this working before Part 1, so the actual project stays about MLOps, not infrastructure.
 
-You can do everything below three ways: through the website at [console.cloud.google.com](https://console.cloud.google.com) - called **"the console"** below - through **Cloud Shell** (a terminal built into the console with `gcloud` pre-installed and pre-authenticated - click the `>_` icon in the console toolbar, nothing to set up), or with the `gcloud` CLI installed on your own machine (entirely optional - covered in step 3 below). Steps below show the console first, with the equivalent `gcloud` command underneath where one exists; run that command in Cloud Shell or in your own terminal, whichever you set up.
-
-Everything in this tutorial runs from one small Google Cloud VM that you set up once and access entirely through your browser - nothing to install on your own Windows/Mac/Linux machine, and no admin rights needed. Get this working before Part 1, so the actual project below stays about MLOps, not infrastructure.
+You can do the steps below three ways: through the website at [console.cloud.google.com](https://console.cloud.google.com) - called **"the console"** below - through **Cloud Shell** (a terminal built into the console with `gcloud` pre-installed and pre-authenticated - click the `>_` icon in the console toolbar, nothing to set up), or with the `gcloud` CLI installed on your own machine (optional - see step 3). Each step below shows the console first, with the equivalent `gcloud` command underneath where one exists; run that command in Cloud Shell or in your own terminal, whichever you set up.
 
 **1. Create a Google Cloud account.** Go to [console.cloud.google.com](https://console.cloud.google.com) and sign in with a Google account. New accounts get free trial credit.
 
@@ -47,7 +45,7 @@ gcloud projects create <your-project-id> --name="MLOps Tutorial"
 ```
 `<your-project-id>` must be globally unique - e.g. `yourname-mlops-tutorial`. You'll use this exact string as `project_id` later.
 
-**3. (Optional) Install and connect the `gcloud` CLI on your own machine.** Everything in this tutorial can be done through the console or Cloud Shell alone, so feel free to skip this step entirely - it only matters if you'd rather run commands (including connecting to your VM in step 6 below) from a regular terminal on your own machine instead of the browser. If you skip it, just use the console or Cloud Shell wherever a `gcloud` command is shown below.
+**3. (Optional) Install and connect the `gcloud` CLI on your own machine.** Skip this if the console or Cloud Shell alone is enough for you - it only matters if you'd rather run commands (including connecting to your VM in step 6 below) from a regular terminal on your own machine instead of the browser.
 
 1. Install it: follow the [official instructions](https://cloud.google.com/sdk/docs/install) for your OS.
 2. Run `gcloud init`. This is a one-time setup per machine: it opens a browser so you can log into your Google account, then offers to set the project you just created in step 2 as your default.
@@ -100,7 +98,7 @@ Run this from a checkout of this repository so the relative path to `vm-startup.
 > #### Alternative: run this on your own machine instead
 > If you'd rather not use a VM at all, you can run everything locally: install `gcloud` per step 3 above (if you haven't already), plus [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose) and `jq` (`apt install jq` / `brew install jq` / [jqlang.org](https://jqlang.org/download/)), then continue with Part 0 below from a local clone of this repository. Everything below works identically either way.
 
-## How it works (short version)
+## How it works (quick summary)
 
 1. `prepare_dataset.py` loads the AG News dataset (news headlines labeled World/Sports/Business/Sci-Tech) and uploads a couple thousand rows to BigQuery, backdated with timestamps so it looks like "recent" production data.
 2. A Vertex AI Pipeline (defined in `main.py`) runs three steps:
@@ -244,12 +242,12 @@ The deployed model needs a container image that knows how to load it and answer 
 
 ```bash
 cd serving
-CONFIG=$(cat ../config.json | jq '.model_tag, .region, .repository_name, .image_name' | sed 's/"//g' | tr '\n' ',')
 gcloud builds submit \
     --config cloudbuild.yaml \
-    --substitutions _MODEL_VERSION=$(echo $CONFIG | cut -d, -f1),_LOCATION=$(echo $CONFIG | cut -d, -f2),_REPOSITORY_NAME=$(echo $CONFIG | cut -d, -f3),_IMAGE_NAME=$(echo $CONFIG | cut -d, -f4)
+    --substitutions _MODEL_VERSION=$(jq -r '.model_tag' ../config.json),_LOCATION=$(jq -r '.region' ../config.json),_REPOSITORY_NAME=$(jq -r '.repository_name' ../config.json),_IMAGE_NAME=$(jq -r '.image_name' ../config.json)
 cd ..
 ```
+(Each `$(jq -r '.field' ../config.json)` just reads one value out of your config file to fill in the build substitution of the same name.)
 This uses Cloud Build (a Google-managed build service) rather than building locally, so it works the same regardless of your machine's architecture. It can take a few minutes the first time.
 
 ---
@@ -269,6 +267,16 @@ This compiles the pipeline defined in `main.py` and submits it to Vertex AI Pipe
 | **Total** | **~70-90 min** | |
 
 These steps run sequentially, not in parallel, so the total is roughly their sum. Actual times vary by run - use this as a rough guide for how long to expect `docker compose run` to keep you waiting, not a guarantee.
+
+**If your SSH session drops during this wait, don't panic and don't re-run the command.** The pipeline itself runs on Vertex AI's managed infrastructure regardless of whether anything on your VM is still connected - closing your laptop or losing Wi-Fi doesn't stop it. Even the `docker compose run` process that submitted it keeps running in the background on the VM, independent of your SSH session, since Docker containers live in the Docker daemon rather than in your terminal. Reconnect (Prerequisite, step 6) and check on it:
+```bash
+docker ps
+```
+Find the container still `Up` and running `python main.py`, then re-attach to its output:
+```bash
+docker logs -f <container-name>
+```
+(Ctrl+C here just stops watching the logs - it doesn't stop the pipeline.) Or just check progress in the console, as below.
 
 You can watch progress in the console under Vertex AI (Gemini Enterprise Agent Platform) → Pipelines, in your project. Each step's logs are available by clicking into it.
 
@@ -321,7 +329,7 @@ Headline: Art Looks Like Fine Investment for Funds (Reuters) Reuters - Some mutu
      World: 1%
      Sports: 1%
 
-Headline:  #39;One in 12 Emails Infected with Virus #39; The number of attempted attacks by computer viruses rocketed in the first half of the year, according to a report published today. 
+Headline:  One in 12 Emails Infected with Virus; The number of attempted attacks by computer viruses rocketed in the first half of the year, according to a report published today. 
   -> Sci/Tech
      Sci/Tech: 97%
      Business: 2%
@@ -353,8 +361,6 @@ Type 'quit' or press Ctrl+C to stop.
 
 > quit
 ```
-
-![Terminal session classifying a typed headline interactively](assets/interactive_demo.jpg)
 
 Try headlines that straddle two categories (e.g. a sports team's stock price, or a tech company's court case) to get a feel for where the model is confident versus genuinely unsure.
 
@@ -467,6 +473,7 @@ gcloud projects delete <your-project-id>
 - **Pipeline stuck/failed in the console**: click into the failing step to see its logs; most first-run failures are a missing API (Part 1.2), a missing IAM role (Part 1.4), or a bucket/dataset name typo in `config.json`.
 - **`git`, `docker`, `jq`, or `gcloud` missing on the tutorial VM**: the startup script (Prerequisite, step 5) either hadn't finished yet when you connected (wait a minute after creating the VM, or check with `sudo journalctl -u google-startup-scripts.service`), or wasn't attached to the VM at all (double-check you pasted `vm-startup.sh`'s contents into the startup-script field, or used `--metadata-from-file` in the `gcloud` command). Either way, you can always install the missing piece by hand, e.g. `sudo apt-get update && sudo apt-get install -y git jq docker.io google-cloud-cli`.
 - **Part 4 prints `ValueError: Output artifacts bucket "..." exists but does not belong to project "..."` / "This may indicate a bucket squatting attack"**: this is usually a false alarm, and the pipeline run itself still succeeds (it appears right before `PipelineJob created`) - it does **not** mean your bucket is compromised. It's the Vertex AI SDK failing to verify bucket ownership because either `cloudresourcemanager.googleapis.com` isn't enabled (step 1.2) or the service account is missing `roles/browser` (step 1.4) - both needed for the SDK to resolve your project ID to a project number. Add whichever is missing and rerun; if you just want to confirm the bucket is genuinely yours, check with `gcloud storage buckets describe gs://<bucket_name> --format="value(name)"` (a 403 there means someone else really does own the name - pick a more unique `bucket_name`, e.g. `$PROJECT_ID-vertexai-tutorial`).
+- **Lost my SSH connection during Part 4's ~70-90 minute wait - is the pipeline dead?**: no - see the note in Part 4. The pipeline runs on Vertex AI's infrastructure independent of your VM, and the `docker compose run` process that submitted it keeps running on the VM regardless of your SSH session. Reconnect and run `docker ps` to find it still `Up`, then `docker logs -f <container-name>` to watch it again.
 - **`gcloud compute instances create` fails with "No default subnetwork was found in the region of the instance"**: your project's `default` VPC network exists but is missing an auto-created subnet in the region you're using (some projects' default networks never backfill newer regions). Check with:
   ```bash
   gcloud compute networks subnets list --filter="region:europe-west1"
