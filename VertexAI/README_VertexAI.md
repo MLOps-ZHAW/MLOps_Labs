@@ -8,7 +8,7 @@ By the end, you'll have a small news-article classifier (World / Sports / Busine
 
 ## Before you start: cost and cleanup
 
-This tutorial uses real, billable Google Cloud resources. Training is a one-off cost, but the **deployed endpoint (and the tutorial VM, if you use one) keep running - and billing - until you delete them** - neither shuts itself off. **Part 6 (Clean up)** at the end of this document tells you exactly how to tear everything down. Do it once you're done experimenting.
+This tutorial uses real, billable Google Cloud resources. Training is a one-off cost, but the **deployed endpoint (and the tutorial VM, if you use one) keep running - and billing - until you delete them** - neither shuts itself off. **Part 7 (Clean up)** at the end of this document tells you exactly how to tear everything down. Do it once you're done experimenting.
 
 If you're on a new Google account, Google Cloud's free trial credit is generally enough to complete this tutorial.
 
@@ -290,62 +290,48 @@ chmod +x sample-request.sh
 1. Reads `project_id`, `region`, and `endpoint_display_name` out of `config.json` with `jq`.
 2. Gets a short-lived access token via `gcloud auth print-access-token` - note this uses *your own* logged-in `gcloud auth login` identity, not the `vertexai-tutorial` service account (`credential.json`) used everywhere else in this tutorial. It works as long as your own account has permission to call the endpoint, which it does if you're the project Owner.
 3. Sends a `POST` request straight to Vertex AI's REST API - `https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/endpoints/{endpoint_display_name}:predict` - with a JSON body containing 4 sample news headlines as `instances`. (Note this URL uses `endpoint_display_name`, not the endpoint's numeric ID - Vertex AI's `predict` REST method accepts either.) The request body matches the `{"instances": [...]}` shape your custom serving container's `/predict` route expects - see [Model serving container](#model-serving-container).
-4. Prints the raw JSON response: for each headline, the model's predicted category plus its probability for all 4 classes.
+4. Prints each headline next to what the model predicted for it: the predicted category, plus every class's probability as a percentage, sorted highest first.
 
-The comment at the bottom of the script lists the true labels (World, Sports, Business, Sci/Tech) in the same order as the 4 headlines, so you can eyeball whether the predictions actually match.
+The comment at the top of the script's `headlines` array lists the true labels (World, Sports, Business, Sci/Tech) in the same order as the 4 headlines, so you can eyeball whether the predictions actually match.
 
 Expected output looks like:
-```json
-{
-  "predictions": [
-    {
-      "probabilities": {
-        "Sci/Tech": 0.0032518664374947548,
-        "World": 0.98935961723327637,
-        "Sports": 0.0034750890918076038,
-        "Business": 0.0039134090766310692
-      },
-      "predicted_class": "World"
-    },
-    {
-      "probabilities": {
-        "World": 0.013002258725464341,
-        "Sports": 0.97295308113098145,
-        "Business": 0.0041450257413089284,
-        "Sci/Tech": 0.00989964697510004
-      },
-      "predicted_class": "Sports"
-    },
-    {
-      "probabilities": {
-        "World": 0.0058785984292626381,
-        "Sports": 0.0053764986805617809,
-        "Sci/Tech": 0.029164601117372509,
-        "Business": 0.95958030223846436
-      },
-      "predicted_class": "Business"
-    },
-    {
-      "predicted_class": "Sci/Tech",
-      "probabilities": {
-        "Business": 0.018011067062616348,
-        "Sports": 0.002777427202090621,
-        "Sci/Tech": 0.97608381509780884,
-        "World": 0.003127649892121553
-      }
-    }
-  ],
-  "deployedModelId": "xxx",
-  "model": "projects/xxx/locations/xxx/models/text-classification-model",
-  "modelDisplayName": "text-classification-model",
-  "modelVersionId": "1"
-}
+```
+Project ID: your-project-id
+Location: europe-west1
+Endpoint Name: text-classification-endpoint
+
+Headline: Arrested Qaida terrorist an India-born WASHINGTON: Abu Musa al-Hindi, one of the principle terror suspects charged with plotting to attack US financial institutions, has been identified as India-born Dhiren Barot. British police on Tuesday charged Barot, 32, of gathering surveillance plans of ...
+  -> World
+     World: 98%
+     Business: 1%
+     Sci/Tech: 1%
+     Sports: 0%
+
+Headline: DiMarco, Riley Get on Ryder Cup Team (AP) AP - Hal Sutton had a good idea what kind of U.S. team he would take to the Ryder Cup. All that changed in the final round of the PGA Championship.
+  -> Sports
+     Sports: 98%
+     World: 1%
+     Business: 0%
+     Sci/Tech: 0%
+
+Headline: Art Looks Like Fine Investment for Funds (Reuters) Reuters - Some mutual funds invest in stocks;\others invest in bonds. Now a new breed of funds is offering\the chance to own fine art.
+  -> Business
+     Business: 97%
+     Sci/Tech: 1%
+     World: 1%
+     Sports: 1%
+
+Headline:  #39;One in 12 Emails Infected with Virus #39; The number of attempted attacks by computer viruses rocketed in the first half of the year, according to a report published today. 
+  -> Sci/Tech
+     Sci/Tech: 97%
+     Business: 2%
+     World: 0%
+     Sports: 0%
 ```
 
-**Want to try your own headlines instead of the 4 hardcoded ones?** [`interactive-request.sh`](interactive-request.sh) makes the same `:predict` call as `sample-request.sh`, but prompts you for a headline, sends it, and prints back the predicted class and probabilities - then loops so you can keep trying more:
+**Want to try your own headlines instead of the 4 built-in ones?** Pass `--interactive`: same script, same `:predict` call, but it prompts you for a headline instead of using the hardcoded list, and loops so you can keep trying more:
 ```bash
-chmod +x interactive-request.sh
-./interactive-request.sh
+./sample-request.sh --interactive
 ```
 ```
 Type a news headline and press Enter to classify it (World / Sports / Business / Sci-Tech).
@@ -367,11 +353,56 @@ Type 'quit' or press Ctrl+C to stop.
 
 > quit
 ```
+
+![Terminal session classifying a typed headline interactively](assets/interactive_demo.jpg)
+
 Try headlines that straddle two categories (e.g. a sports team's stock price, or a tech company's court case) to get a feel for where the model is confident versus genuinely unsure.
 
 ---
 
-## Part 6: Clean up (do this when you're done)
+## Part 6: (Optional) Deploy a web GUI with Cloud Run
+
+As a next step beyond the command-line scripts, [`webapp/`](webapp) in this repo is a small [FastAPI](https://fastapi.tiangolo.com/) app - one page, one text box - that calls your deployed Endpoint the same way `sample-request.sh` does, and shows the result in a browser instead of a terminal. **Cloud Run** is the natural way to host something this small on Google Cloud: it builds and deploys a container from source in one command, gives you a public HTTPS URL, and scales to zero (costs nothing) when nobody's using it.
+
+**How it authenticates:** unlike the shell scripts (which use *your own* `gcloud auth login` identity) or the pipeline (which uses the `credential.json` key file), the webapp picks up credentials automatically from whichever service account Cloud Run attaches to it - no key file involved. The `--service-account` flag below reuses the `vertexai-tutorial` service account, which already has `roles/aiplatform.user` from step 1.4, so no new IAM setup is needed. See [`webapp/main.py`](webapp/main.py) for the whole thing - it's under 100 lines.
+
+**6.1 Enable Cloud Run** (only needed once per project):
+```bash
+gcloud services enable run.googleapis.com
+```
+
+**6.2 Deploy it** - this builds the container via Cloud Build and deploys it, in one command:
+```bash
+gcloud run deploy headline-classifier \
+    --source=webapp/ \
+    --region=$(jq -r '.region' config.json) \
+    --service-account=$(jq -r '.service_account' config.json) \
+    --set-env-vars=PROJECT_ID=$(jq -r '.project_id' config.json),REGION=$(jq -r '.region' config.json),ENDPOINT_DISPLAY_NAME=$(jq -r '.endpoint_display_name' config.json)
+```
+The first run also creates a small Artifact Registry repo called `cloud-run-source-deploy` to hold the built image (separate from `repo-vertexai` from step 1.6) - that's expected.
+
+By default, the deployed service **requires authentication**: nobody can call it without a valid Google identity token, so your endpoint isn't left open to the internet just because you deployed a GUI for it. Test it like this (works from the VM, Cloud Shell, or your own terminal - anywhere logged into `gcloud` as a user with access to the project):
+```bash
+SERVICE_URL=$(gcloud run services describe headline-classifier --region=$(jq -r '.region' config.json) --format='value(status.url)')
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" "$SERVICE_URL"
+```
+
+**6.3 (Optional) Make it public**, if you'd like to just open it in a browser without dealing with tokens:
+```bash
+gcloud run services add-iam-policy-binding headline-classifier \
+    --region=$(jq -r '.region' config.json) \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+```
+Then open `$SERVICE_URL` directly in any browser. Be aware this makes the page - and, by extension, the ability to call your Vertex AI Endpoint through it - reachable by anyone with the link, not just you. Only do this for a short-lived demo, and make sure to tear it down afterward (Part 7 below).
+
+Expected result:
+
+![The deployed web GUI in a browser, showing a headline classified as Business with per-class probabilities](assets/web_demo.jpg)
+
+---
+
+## Part 7: Clean up (do this when you're done)
 
 The deployed endpoint bills for compute time as long as it exists, whether or not you're sending it requests. To tear everything down:
 
@@ -385,15 +416,20 @@ gcloud ai endpoints delete <ENDPOINT_ID> --region=europe-west1
 gcloud ai models list --region=europe-west1
 gcloud ai models delete <MODEL_ID> --region=europe-west1
 
-# 3. If you created a tutorial VM (Prerequisite, step 5), delete it too - it bills for
+# 3. If you deployed the Part 6 web GUI, delete it too - Cloud Run bills for the time
+#    requests are being handled, and if you made it public (step 6.3), also revoke that
+gcloud run services delete headline-classifier --region=europe-west1
+
+# 4. If you created a tutorial VM (Prerequisite, step 5), delete it too - it bills for
 #    uptime the same way the endpoint does, and isn't needed once you're done
 gcloud compute instances delete mlops-tutorial-vm --zone=europe-west1-b
 
-# 4. Optional - remove the other resources you created if you don't plan to reuse them
+# 5. Optional - remove the other resources you created if you don't plan to reuse them
 gcloud artifacts repositories delete repo-vertexai --location=europe-west1
+gcloud artifacts repositories delete cloud-run-source-deploy --location=europe-west1  # only if you did Part 6
 gcloud storage rm -r gs://<your-bucket-name>
 ```
-`<ENDPOINT_ID>`, `<DEPLOYED_MODEL_ID>`, and `<MODEL_ID>` come from the `list` commands above (or from the console under Vertex AI → Endpoints / Models). Since deleting the VM ends your SSH session, run steps 1-2 (and any other cleanup) *before* step 3, or just do step 3 from Cloud Shell / the console instead.
+`<ENDPOINT_ID>`, `<DEPLOYED_MODEL_ID>`, and `<MODEL_ID>` come from the `list` commands above (or from the console under Vertex AI → Endpoints / Models). Since deleting the VM ends your SSH session, run steps 1-3 (and any other cleanup) *before* step 4, or just do step 4 from Cloud Shell / the console instead.
 
 If this was a throwaway project made just for this tutorial, the simplest cleanup is deleting the whole project instead:
 ```bash
