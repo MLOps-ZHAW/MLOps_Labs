@@ -1,6 +1,6 @@
 {
     "project_id": "<your_project_id>",
-    "region": "europe-north1",
+    "region": "europe-west1",
     "bucket_name": "vertexai-sandbox-bucket",
     "dataset_id": "vertexai_test_dataset",
     "table_id": "text_classification_data",
