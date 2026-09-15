@@ -285,6 +285,15 @@ chmod +x sample-request.sh
 ./sample-request.sh
 ```
 
+`sample-request.sh` sends a few hardcoded example headlines to your deployed Endpoint and prints back what the model predicts for each. Specifically, it:
+
+1. Reads `project_id`, `region`, and `endpoint_display_name` out of `config.json` with `jq`.
+2. Gets a short-lived access token via `gcloud auth print-access-token` - note this uses *your own* logged-in `gcloud auth login` identity, not the `vertexai-tutorial` service account (`credential.json`) used everywhere else in this tutorial. It works as long as your own account has permission to call the endpoint, which it does if you're the project Owner.
+3. Sends a `POST` request straight to Vertex AI's REST API - `https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/endpoints/{endpoint_display_name}:predict` - with a JSON body containing 4 sample news headlines as `instances`. (Note this URL uses `endpoint_display_name`, not the endpoint's numeric ID - Vertex AI's `predict` REST method accepts either.) The request body matches the `{"instances": [...]}` shape your custom serving container's `/predict` route expects - see [Model serving container](#model-serving-container).
+4. Prints the raw JSON response: for each headline, the model's predicted category plus its probability for all 4 classes.
+
+The comment at the bottom of the script lists the true labels (World, Sports, Business, Sci/Tech) in the same order as the 4 headlines, so you can eyeball whether the predictions actually match.
+
 Expected output looks like:
 ```json
 {
