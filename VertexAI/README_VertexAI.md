@@ -12,6 +12,25 @@ This tutorial uses real, billable Google Cloud resources. Training is a one-off 
 
 If you're on a new Google account, Google Cloud's free trial credit is generally enough to complete this tutorial.
 
+## Glossary
+
+A few terms come up repeatedly below - skip this if you're already familiar with them.
+
+| Term | What it means here |
+|---|---|
+| **Project** | A Google Cloud project is an isolated container for your resources, billing, and permissions - like a workspace. Everything you create below lives inside one project. |
+| **Billing account** | The payment method linked to your project. Required before you can use most services, even the free tier. |
+| **`gcloud` CLI** | Google Cloud's command-line tool. Almost every step below is a `gcloud` command. |
+| **Compute Engine VM** | A virtual machine (a whole Linux computer) running in Google's data centers. This tutorial has you create one small VM to run all the commands below from, so it doesn't matter what OS or permissions your own laptop has. |
+| **Service account** | A non-human "robot" identity that your code (running inside Docker containers here) uses to talk to Google Cloud, instead of your personal login. |
+| **Service account key** | A downloadable JSON credentials file (`credential.json` here) that lets code authenticate as a service account. Treat it like a password - never commit it to git (it's already git-ignored in this repo). |
+| **Enabling an API** | Google Cloud services are off by default per project. "Enabling" `bigquery.googleapis.com`, for example, turns BigQuery on for your project. |
+| **Artifact Registry** | Google Cloud's Docker image registry - where the custom container image you build gets stored so Vertex AI can pull it. |
+| **BigQuery** | Google Cloud's data warehouse. Used here just to simulate "fetching fresh data from a production data source," even though the dataset itself doesn't need a database. |
+| **Kubeflow Pipelines (KFP) / Vertex AI Pipelines** | A way to describe a multi-step ML workflow (fetch data → train → deploy) as Python functions, compile it, and run it on managed infrastructure. |
+| **Model Registry** | Vertex AI's catalog of uploaded, versioned models. |
+| **Endpoint** | A deployed, running copy of a model that accepts prediction requests over HTTP. This is the part that keeps billing until deleted. |
+
 ## Prerequisite: create and connect to a Cloud VM
 
 Everything below could just as well run directly on your own laptop - but to avoid OS-specific dependency issues, and as a bit of extra hands-on practice, this tutorial has you create a small Google Cloud VM instead and run everything from there.
@@ -81,25 +100,6 @@ Run this from a checkout of this repository so the relative path to `vm-startup.
 > #### Alternative: run this on your own machine instead
 > If you'd rather not use a VM at all, you can run everything locally: install `gcloud` per step 3 above (if you haven't already), plus [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose) and `jq` (`apt install jq` / `brew install jq` / [jqlang.org](https://jqlang.org/download/)), then continue with Part 0 below from a local clone of this repository. Everything below works identically either way.
 
-## Glossary
-
-A few terms come up repeatedly below - skip this if you're already familiar with them.
-
-| Term | What it means here |
-|---|---|
-| **Project** | A Google Cloud project is an isolated container for your resources, billing, and permissions - like a workspace. Everything you create below lives inside one project. |
-| **Billing account** | The payment method linked to your project. Required before you can use most services, even the free tier. |
-| **`gcloud` CLI** | Google Cloud's command-line tool. Almost every step below is a `gcloud` command. |
-| **Compute Engine VM** | A virtual machine (a whole Linux computer) running in Google's data centers. This tutorial has you create one small VM to run all the commands below from, so it doesn't matter what OS or permissions your own laptop has. |
-| **Service account** | A non-human "robot" identity that your code (running inside Docker containers here) uses to talk to Google Cloud, instead of your personal login. |
-| **Service account key** | A downloadable JSON credentials file (`credential.json` here) that lets code authenticate as a service account. Treat it like a password - never commit it to git (it's already git-ignored in this repo). |
-| **Enabling an API** | Google Cloud services are off by default per project. "Enabling" `bigquery.googleapis.com`, for example, turns BigQuery on for your project. |
-| **Artifact Registry** | Google Cloud's Docker image registry - where the custom container image you build gets stored so Vertex AI can pull it. |
-| **BigQuery** | Google Cloud's data warehouse. Used here just to simulate "fetching fresh data from a production data source," even though the dataset itself doesn't need a database. |
-| **Kubeflow Pipelines (KFP) / Vertex AI Pipelines** | A way to describe a multi-step ML workflow (fetch data → train → deploy) as Python functions, compile it, and run it on managed infrastructure. |
-| **Model Registry** | Vertex AI's catalog of uploaded, versioned models. |
-| **Endpoint** | A deployed, running copy of a model that accepts prediction requests over HTTP. This is the part that keeps billing until deleted. |
-
 ## How it works (short version)
 
 1. `prepare_dataset.py` loads the AG News dataset (news headlines labeled World/Sports/Business/Sci-Tech) and uploads a couple thousand rows to BigQuery, backdated with timestamps so it looks like "recent" production data.
@@ -148,8 +148,10 @@ gcloud services enable \
     aiplatform.googleapis.com \
     bigquery.googleapis.com \
     artifactregistry.googleapis.com \
-    cloudbuild.googleapis.com
+    cloudbuild.googleapis.com \
+    cloudresourcemanager.googleapis.com
 ```
+(`cloudresourcemanager.googleapis.com` isn't called directly by this tutorial's code, but the Vertex AI SDK uses it internally to verify your `pipeline_root` bucket actually belongs to your project before writing to it - without it enabled, Part 4 prints a scary but non-fatal "bucket squatting attack" traceback; see Troubleshooting.)
 
 **1.3 Create a service account.** This is the identity the Docker containers use to call BigQuery and Vertex AI on your behalf (separate from your own personal `gcloud auth login` identity):
 ```bash
@@ -166,6 +168,11 @@ gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/bigquery.dataEditor"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/bigquery.jobUser"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/storage.admin"
+
+# Lets the Vertex AI SDK resolve your project's number (via Cloud Resource Manager) to verify
+# the pipeline_root bucket really belongs to this project - without it, Part 4 raises a
+# non-fatal but scary "bucket squatting attack" error even when the bucket is fine.
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="roles/browser"
 
 # Let the service account act as itself - Vertex AI Pipelines needs this explicitly
 # granted even though the SA submitting the job and the SA running it are the same one.
@@ -252,7 +259,16 @@ This uses Cloud Build (a Google-managed build service) rather than building loca
 ```bash
 docker compose run mlops-v1
 ```
-This compiles the pipeline defined in `main.py` and submits it to Vertex AI Pipelines, which then runs the fetch → train → deploy steps on managed infrastructure. Training a DistilBERT model for 5 epochs on ~2000 rows typically takes **30-60 minutes**.
+This compiles the pipeline defined in `main.py` and submits it to Vertex AI Pipelines, which then runs the fetch → train → deploy steps on managed infrastructure, blocking until the whole thing finishes. Budget **around 70-90 minutes end to end**. Measured from an actual run:
+
+| Step | Typical duration | What it's mostly spending time on |
+|---|---|---|
+| `fetch-data-from-bigquery` | ~5-6 min | Mostly cold-start (Vertex AI spins up a fresh container for each step) plus a quick BigQuery query |
+| `train-model` | ~40-50 min | Fine-tuning DistilBERT for 5 epochs on ~2000 rows on CPU (no GPU/accelerator is configured) |
+| `deploy-model` | ~20-25 min | Uploading to Model Registry, then provisioning and deploying an Endpoint on an `n1-standard-4` VM (image pull + serving container startup dominate) |
+| **Total** | **~70-90 min** | |
+
+These steps run sequentially, not in parallel, so the total is roughly their sum. Actual times vary by run - use this as a rough guide for how long to expect `docker compose run` to keep you waiting, not a guarantee.
 
 You can watch progress in the console under Vertex AI (Gemini Enterprise Agent Platform) → Pipelines, in your project. Each step's logs are available by clicking into it.
 
@@ -378,6 +394,7 @@ gcloud projects delete <your-project-id>
 - **`gcloud builds submit` fails with a repository/permission error**: make sure step 1.6 (Artifact Registry repo) succeeded, and that your own `gcloud auth login` user (not the service account) has permission to submit Cloud Builds and push images - if you're the project Owner, you already do.
 - **Pipeline stuck/failed in the console**: click into the failing step to see its logs; most first-run failures are a missing API (Part 1.2), a missing IAM role (Part 1.4), or a bucket/dataset name typo in `config.json`.
 - **`git`, `docker`, `jq`, or `gcloud` missing on the tutorial VM**: the startup script (Prerequisite, step 5) either hadn't finished yet when you connected (wait a minute after creating the VM, or check with `sudo journalctl -u google-startup-scripts.service`), or wasn't attached to the VM at all (double-check you pasted `vm-startup.sh`'s contents into the startup-script field, or used `--metadata-from-file` in the `gcloud` command). Either way, you can always install the missing piece by hand, e.g. `sudo apt-get update && sudo apt-get install -y git jq docker.io google-cloud-cli`.
+- **Part 4 prints `ValueError: Output artifacts bucket "..." exists but does not belong to project "..."` / "This may indicate a bucket squatting attack"**: this is usually a false alarm, and the pipeline run itself still succeeds (it appears right before `PipelineJob created`) - it does **not** mean your bucket is compromised. It's the Vertex AI SDK failing to verify bucket ownership because either `cloudresourcemanager.googleapis.com` isn't enabled (step 1.2) or the service account is missing `roles/browser` (step 1.4) - both needed for the SDK to resolve your project ID to a project number. Add whichever is missing and rerun; if you just want to confirm the bucket is genuinely yours, check with `gcloud storage buckets describe gs://<bucket_name> --format="value(name)"` (a 403 there means someone else really does own the name - pick a more unique `bucket_name`, e.g. `$PROJECT_ID-vertexai-tutorial`).
 - **`gcloud compute instances create` fails with "No default subnetwork was found in the region of the instance"**: your project's `default` VPC network exists but is missing an auto-created subnet in the region you're using (some projects' default networks never backfill newer regions). Check with:
   ```bash
   gcloud compute networks subnets list --filter="region:europe-west1"
