@@ -12,7 +12,7 @@ This is the repository for the labs/tutorials of a course about Machine Learning
 | 2 | Prompt engineering a chatbot | 🤗 Transformers, Streamlit | [Lab 02](lab02/README_lab02.md) |
 | 3 | Experiment management and hyperparameter tuning | MLflow, Ray Tune | [Lab 03](lab03/README_lab03.md) |
 | 4 | CI/CD and testing for code and models | GitHub Actions, pytest, Deepchecks, CML | [Lab 04](lab04/README_lab04.md) |
-| 5 | From notebooks to pipelines to batch processing | Ploomber, Airflow | [Lab 05](lab05/README_lab05.md) |
+| 5 | From notebooks to pipelines to batch processing | Kedro, Airflow | [Lab 05](lab05/README_lab05.md) |
 | 6 | Data-centric MLOps | Git LFS, DVC, Albumentations, 🤗 Diffusers | [Lab 06](lab06/README_lab06.md) |
 | 7 | Deploying and protecting machine learning models | MLServer, Alibi Detect | [Lab 07](lab07/README_lab07.md) |
 | | Creating a (shared) VM in GCP | Google Cloud | [GCP](GCP/README_GCP.md) |
