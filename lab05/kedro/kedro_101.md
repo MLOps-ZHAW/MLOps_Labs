@@ -11,7 +11,7 @@ This introduction is based on the [official Kedro documentation](https://docs.ke
 
 ## Basic concepts
 
-Until now, our discussion has centered around _pipelines_ without providing a clear definition of the term. In essence, a pipeline is a sequence of processing elements (such as processes, threads, coroutines, functions, etc.) organized in such a way that the output of each element serves as the input for the next one[1]. From a mathematical perspective, a pipeline forms a directed acyclic graph (DAG), where the nodes represent the processing elements, and the edges represent the flow of data.
+Until now, our discussion has centered around _pipelines_ without providing a clear definition of the term. In essence, a pipeline is a sequence of processing elements (such as processes, threads, coroutines, functions, etc.) organized in such a way that the output of each element serves as the input for the next one[1]. From a mathematical perspective, a pipeline forms a [directed acyclic graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph), where the nodes represent the processing elements, and the edges represent the flow of data.
 
 [Kedro](https://kedro.org/) is an open-source Python framework for building such pipelines for data science and machine learning. It is hosted by the [LF AI & Data Foundation](https://lfaidata.foundation/) and borrows concepts from software engineering - modularity, separation of concerns, versioning - and applies them to data science code.
 
@@ -64,6 +64,12 @@ The nodes are ordinary Python functions (`src/covid_example/pipelines/regression
 
 ```python
 def clean(covid_raw: pd.DataFrame) -> pd.DataFrame:
+    """Convert the `Cases` and `Tests` columns to numbers.
+
+    The raw CSV writes large numbers with thousands separators (e.g. "2,431"),
+    so pandas reads them as strings. The commas are removed and the columns
+    are parsed as numeric; all other columns are left unchanged.
+    """
     data = covid_raw.copy()
     for col in ["Cases", "Tests"]:
         data[col] = pd.to_numeric(data[col].astype(str).str.replace(",", ""))
@@ -71,10 +77,18 @@ def clean(covid_raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def split(covid_clean: pd.DataFrame, test_size: float, random_state: int):
+    """Split the data into a training and a test set.
+
+    The feature `X` is the daily number of `Tests`, the target `y` the daily
+    number of positive `Cases`, both as column vectors (shape `(n, 1)`) as
+    scikit-learn expects. Returns `X_train, X_test, y_train, y_test`.
+    """
     X = covid_clean["Tests"].to_numpy().reshape(-1, 1)
     y = covid_clean["Cases"].to_numpy().reshape(-1, 1)
     return train_test_split(X, y, test_size=test_size, random_state=random_state)
 ```
+
+The two remaining nodes are just as small: `train` fits a linear regression `Cases = coef * Tests + intercept` on the training set, and `report` summarises the fitted model in a one-row table with the slope (`coef`), the `intercept` and the R² on the test set (`r2_test`).
 
 The pipeline wires them together by _dataset names_ (`pipeline.py`):
 
@@ -144,6 +158,13 @@ kedro viz run
 ```
 
 This opens `http://localhost:4141` in your browser (on a remote machine, forward the port with `ssh -L 4141:localhost:4141 <user>@<host>` and use `kedro viz run --no-browser`).
+
+If you want to use a different port than the default, pass it with `--port`, and use the same port for the SSH forwarding:
+
+```shell
+kedro viz run --port 3131 --no-browser        # then open http://localhost:3131
+ssh -L 3131:localhost:3131 <user>@<host>      # on your laptop, if Kedro-Viz runs on a remote machine
+```
 
 ![Screenshot of Kedro-Viz](imgs/kedro_viz.png)
 

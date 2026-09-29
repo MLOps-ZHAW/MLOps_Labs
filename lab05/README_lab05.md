@@ -18,7 +18,7 @@ We will start with a good old Jupyter Notebook. Then, you will be introduced to 
 
 ## Setup
 
-Everything in this lab runs on a laptop: the whole coffee pipeline takes well under a minute on a 4-core CPU and needs less than 2 GB of RAM (the first run downloads a small embedding model from Hugging Face, so you need an internet connection). If you prefer, you can also use the lab VM - a GPU is used automatically if available, but it is not needed.
+Everything in this lab runs on a laptop: the whole coffee pipeline takes well under a minute on a 4-core CPU and needs less than 2 GB of RAM (the first run downloads a small embedding model from Hugging Face, so you need an internet connection). If you prefer, you can also use your lab VM - a GPU is used automatically if available, but it is not needed.
 
 ```shell
 conda env create -f lab05/env.yaml
