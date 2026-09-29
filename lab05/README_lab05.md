@@ -16,6 +16,30 @@ by looking at how you can build and scale data processing pipelines - from noteb
 In this lab, you will learn about one way of converting a notebook-based experiment into a scalable pipeline.
 We will start with a good old Jupyter Notebook. Then, you will be introduced to [Kedro](https://kedro.org/), a framework for building modular, maintainable pipelines from plain Python functions. Once we have created a Kedro pipeline, we will deploy it using [Airflow](https://airflow.apache.org/), a popular open-source workload scheduler.
 
+## Motivation: why Kedro _and_ Airflow?
+
+Kedro and Airflow solve different problems. In short: **Kedro structures your ML code into a pipeline, Airflow operates pipelines in production.**
+
+**Kedro is for development.** It gives your code a structure - plain Python functions (nodes), a Data Catalog that takes care of all file access, and parameters in YAML. You can iterate quickly on your laptop (`kedro run`, `kedro run --nodes ...`, Kedro-Viz, notebooks), and your nodes are pure functions that are easy to test and reuse. What Kedro does _not_ decide is _when_ and _where_ the pipeline runs: `kedro run` runs it once, in a single process, on your machine.
+
+**Airflow is for operations.** Once the pipeline has to run regularly and reliably without anyone watching, Airflow adds:
+
+- **Scheduling** - e.g. every night at 02:00, or whenever new data arrives.
+- **Retries and failure handling** - if a task fails, Airflow retries it, can alert you, and lets you re-run just that task.
+- **Monitoring and history** - a web UI with every run, the duration and logs of each task, and what failed when.
+- **Backfills** - re-running the pipeline for past dates.
+- **Distributed execution** - tasks can run on different workers or machines (e.g. training on a GPU node).
+- **Orchestration across systems** - your ML pipeline becomes one step in a larger workflow (data ingestion before it, deployment or reporting after it).
+
+**Why not start directly with Airflow?**
+
+- Airflow is heavyweight to develop in: you need a scheduler, a metadata database and a webserver just to test a change. That makes iterating on data science code slow.
+- Airflow does not structure your ML code - there is no data catalog and no parameter management. Code written directly as DAGs tends to mix scheduling, I/O and modelling.
+- A Kedro pipeline does not depend on any particular orchestrator. The same project can be exported to Airflow, Prefect, Kubeflow, Databricks, ... or just run with `kedro run`.
+- Many pipelines never need Airflow. During exploration and experimentation, `kedro run` is enough - you add an orchestrator once the pipeline is stable and needs to run in production.
+
+This is exactly the workflow of this lab: develop and debug with `kedro run` and Kedro-Viz, then generate the Airflow DAG with `kedro airflow create` once the pipeline is stable. Think of Kedro as how you write and organise the program, and of Airflow as the cron job, supervisor and dashboard that runs it in production.
+
 ## Setup
 
 Everything in this lab runs on a laptop: the whole coffee pipeline takes well under a minute on a 4-core CPU and needs less than 2 GB of RAM (the first run downloads a small embedding model from Hugging Face, so you need an internet connection). If you prefer, you can also use your lab VM - a GPU is used automatically if available, but it is not needed.
