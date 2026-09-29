@@ -101,7 +101,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 
 # A DAG represents a workflow, a collection of tasks
 # catchup=False: only run the latest interval, don't backfill every day since start_date
-with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *", catchup=False) as dag:
+with DAG(dag_id="demo", start_date=datetime(2025, 1, 1), schedule="0 0 * * *", catchup=False) as dag:
     # Tasks are represented as operators
     hello = BashOperator(task_id="hello", bash_command="echo hello")
 
@@ -117,9 +117,9 @@ with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *", c
 
 Here you see the following:
 
-- A [DAG](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html) named “demo”, starting on Jan 1st 2022 and running once a day. A DAG is Airflow’s representation of a workflow.
-- `catchup=False`: If catchup is enabled, Airflow schedules a run for every interval between `start_date` and today - enabling this DAG would immediately start one run for every day since 2022! `False` is the default in Airflow 3, but it was `True` in older versions, so it is good practice to set it explicitly.
-- Two [tasks](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html), a BashOperator running a Bash script and a Python function defined using the `@task` decorator. There are three types of tasks:
+- A [DAG](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html) named “demo”, starting on Jan 1st 2025 and running once a day. A DAG is Airflow’s representation of a workflow.
+- `catchup=False`: If catchup is enabled, Airflow schedules a run for every interval between `start_date` and today - enabling this DAG would immediately start one run for every day since 1.1.2025! `False` is the default in Airflow 3, but it was `True` in older versions, so it is good practice to set it explicitly.
+- Two [tasks](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html), a BashOperator running a Bash command and a Python function defined using the `@task` decorator. There are three types of tasks:
   - [Operators](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/operators.html), predefined task templates that you can string together quickly to build most parts of your DAGs.
   - [Sensors](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/sensors.html), a special subclass of Operators which are entirely about waiting for an external event to happen.
   - [TaskFlow-decorated](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/taskflow.html) `@task`s, which are custom Python functions packaged up as a Task.
