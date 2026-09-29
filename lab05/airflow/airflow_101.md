@@ -64,9 +64,17 @@ This command initializes the database, creates an `admin` user, and starts all t
 Once that's done, take note of the password printed in the terminal (it is also stored in `$AIRFLOW_HOME/simple_auth_manager_passwords.json.generated`). You can access the Airflow UI by visiting `localhost:8080`.
 
 > **Working on a remote machine (e.g. the lab VM)?** The UI runs on the machine where you started Airflow. Forward the port to your laptop, e.g. `ssh -L 8080:localhost:8080 <user>@<host>`, then open `localhost:8080` in your local browser.
->
-> **Port 8080 already taken?** Change the port of the API server _and_ tell the tasks where to find it, e.g. for port 8081:
-> `AIRFLOW__API__PORT=8081 AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://localhost:8081/execution/ airflow standalone`.
+
+By default, `airflow standalone` serves the UI on port **8080**. This port belongs to the API server, which serves both the web UI and the API that running tasks use to report back to Airflow (the "execution API"). If you want to use a different port than the default, you therefore have to change two settings: the port the API server listens on (`[api] port`) _and_ the URL where the tasks find the execution API (`[core] execution_api_server_url`). Otherwise the UI works, but the tasks try to contact port 8080 and fail. For example, for port 8081:
+
+```shell
+export AIRFLOW__API__PORT=8081
+export AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://localhost:8081/execution/
+airflow standalone                             # then open http://localhost:8081
+ssh -L 8081:localhost:8081 <user>@<host>       # on your laptop, if Airflow runs on a remote machine
+```
+
+(The `AIRFLOW__<SECTION>__<KEY>` environment variables are explained further below. You could also put the same settings into `$AIRFLOW_HOME/airflow.cfg`.)
 
 Head over to the _Dags_ page. It lists all DAGs in the Airflow DAG folder - in this case, all DAGs in the Airflow examples. By default, they are all paused, as you can tell from the toggle switches on the right hand side of each DAG.
 
