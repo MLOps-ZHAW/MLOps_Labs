@@ -92,6 +92,7 @@ With this in mind let's take a closer look at how DAGs are implemented. Take a l
 
 ```python
 from datetime import datetime
+from pathlib import Path
 
 # The DAG object and the @task decorator; we'll need these to define our workflow.
 from airflow.sdk import DAG, task
@@ -99,17 +100,35 @@ from airflow.sdk import DAG, task
 # Operators; predefined tasks, e.g. to run a bash command
 from airflow.providers.standard.operators.bash import BashOperator
 
+# Both tasks also write their output to a file named after the start time of the DAG run (UTC):
+# lab05/airflow/output/demo_output_<YYYY-MM-DD_HH-MM-SS>.txt
+# Using the start time of the *run* (not the current time) makes sure both tasks use the same file.
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
+TIME_FORMAT = "%Y-%m-%d_%H-%M-%S"
+
 # A DAG represents a workflow, a collection of tasks
 # catchup=False: only run the latest interval, don't backfill every day since start_date
 with DAG(dag_id="demo", start_date=datetime(2025, 1, 1), schedule="0 0 * * *", catchup=False) as dag:
     # Tasks are represented as operators
-    hello = BashOperator(task_id="hello", bash_command="echo hello")
+    # `tee` prints "hello" (-> task log) and writes it to the file.
+    # {{ dag_run.start_date }} is a Jinja template, filled in by Airflow when the task runs.
+    hello = BashOperator(
+        task_id="hello",
+        bash_command=(
+            f"mkdir -p {OUTPUT_DIR} && echo hello | tee "
+            f'"{OUTPUT_DIR}/demo_output_{{{{ dag_run.start_date.strftime("{TIME_FORMAT}") }}}}.txt"'
+        ),
+    )
 
     # Tasks can also be declared using decorated python functions.
     # This is known as "taskflow".
+    # Arguments named like a context variable (here: dag_run) are filled in by Airflow.
     @task()
-    def say_airflow():
+    def say_airflow(dag_run=None):
         print("airflow")
+        # append to the file created by `hello`
+        with open(OUTPUT_DIR / f"demo_output_{dag_run.start_date.strftime(TIME_FORMAT)}.txt", "a") as f:
+            f.write("airflow\n")
 
     # Set dependencies between tasks
     hello >> say_airflow()
@@ -124,6 +143,10 @@ Here you see the following:
   - [Sensors](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/sensors.html), a special subclass of Operators which are entirely about waiting for an external event to happen.
   - [TaskFlow-decorated](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/taskflow.html) `@task`s, which are custom Python functions packaged up as a Task.
 - \>> between the tasks defines a dependency and controls in which order the tasks will be executed
+- Both tasks print their output (it ends up in the task logs) _and_ write it to a file `lab05/airflow/output/demo_output_<YYYY-MM-DD_HH-MM-SS>.txt`: `hello` creates the file, `say_airflow` appends to it. Every run gets its own file, so you can easily check that a run actually did something.
+- The file name uses the start time of the DAG run, which is the same for all tasks of a run. Both tasks get it from the task _context_ that Airflow provides at run time, in two different ways:
+  - In operator arguments such as `bash_command`, you can use [Jinja templates](https://airflow.apache.org/docs/apache-airflow/stable/templates-ref.html) like `{{ dag_run.start_date }}`, which Airflow fills in just before the task runs. (In the Python code, the braces are doubled to `{{{{ ... }}}}` because the string is an f-string.)
+  - A `@task` function receives context variables if it declares an argument with the same name, here `dag_run=None`.
 
 You can also find this DAG in `lab05/airflow/dags/dag_snippet.py`.
 Stop your current `airflow standalone` (`Ctrl+C`) and change into `lab05/airflow`. Now, restart airflow but this time with `AIRFLOW_HOME` pointing to the current working directory:
@@ -137,6 +160,8 @@ airflow standalone
 `AIRFLOW_HOME` is the root directory for the Airflow content (it must be an absolute path). This is the default parent directory for Airflow assets such as DAGs and logs. If not specified otherwise, Airflow will search `$AIRFLOW_HOME/dags` for DAG files. In our case, this is `lab05/airflow/dags/`, so it will find `dag_snippet.py`. `AIRFLOW__CORE__LOAD_EXAMPLES=False` hides the example DAGs, so you only see your own ones. (Any Airflow config option can be set like this, using the pattern `AIRFLOW__<SECTION>__<KEY>`.)
 
 Once you run the command, you will see a few files being created (`airflow.cfg`, `airflow.db`, `logs/`, ...). This is a fresh Airflow installation, so there is a new admin password - look it up in the terminal output or in `simple_auth_manager_passwords.json.generated`. Log in again. Our little “demo” DAG from above should be visible in the web interface.
+
+Unpause and trigger it a few times. Each successful run creates a new file in `lab05/airflow/output/` containing `hello` and `airflow`. If a file only contains `hello`, the `say_airflow` task of that run failed - check its log.
 
 > **Troubleshooting**
 >
