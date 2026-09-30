@@ -95,7 +95,14 @@ flowchart TD
     LS --> R[Predict rating]
 ```
 
-The web scraper and the review database are not part of this lab - their outputs are the two CSV files in `coffee_analytics/data/`. "Predict rating" is a simple downstream application of the shared latent space.
+The web scraper and the review database are not part of this lab - their outputs are the two CSV files in `coffee_analytics/data/`:
+
+- **`cqi_5_23.csv` - Coffee Quality Data** (207 samples, 41 attributes): the output of the CQI web scraper. One row per coffee lot graded by the Coffee Quality Institute in 2022/2023. Besides metadata (country of origin, farm, variety, processing method, altitude, ...), it contains the scores for **all nine quality criteria** listed above (`Aroma`, `Flavor`, `Aftertaste`, `Acidity`, `Body`, `Balance`, `Uniformity`, `Clean Cup`, `Sweetness`), plus `Overall`, `Total Cup Points` and defect counts.
+- **`rev_5_23.csv` - Review Database** (2440 samples, 20 attributes): coffee reviews from [coffeereview.com](https://www.coffeereview.com/), 2018 - 2023. One row per reviewed coffee, with the roaster, origin, roast level, price, an overall `rating`, and scores for only **five of the nine criteria** (`aroma`, `acid`, `body`, `flavor`, `aftertaste`). The text of each review is split into three columns: `desc_1` (the tasting notes), `desc_2` (background on the producer and the coffee) and `desc_3` (the "bottom line"). `all_text` holds the raw text of the scraped page.
+
+The two files are linked only by the five shared criteria: the CQI data is used to learn how the four missing criteria relate to the five shared ones, and to predict them for the reviews. Note that the column names differ between the two files (e.g. `acid` vs. `Acidity`), so the notebook renames them first.
+
+"Predict rating" is a simple downstream application of the shared latent space.
 
 However, your friend is getting tired of running the pipeline manually. You decide to help them out and build an automated data pipeline for them.
 
