@@ -112,7 +112,14 @@ However, your friend is getting tired of running the pipeline manually. You deci
 
 Convert the notebook into a Kedro pipeline. Make sure that the resulting pipeline has the same steps as the one in the diagram!
 
-Start by creating a new Kedro project next to the notebook:
+**a) Prepare the notebook.** Before writing any Kedro code, restructure `coffee_analytics.ipynb`  so that it maps cleanly onto the pipeline (steps 1 - 3 of the [refactoring recipe](./kedro/kedro_101.md#refactoring-notebooks)):
+
+- Split it into sections with `##` headings, one per step in the diagram. Each section will become one node (or a few).
+- For each section, note which variables it _reads_ and which it _creates_ - these become the inputs and outputs of the node.
+- Define constants (`FEATURE_COLUMNS`, `MISSING_COLUMNS`, `MODEL_NAME`) in the sections that use them, and make sure no section relies on a variable that is not an output of an earlier section.
+- Check that the notebook still runs from top to bottom.
+
+**b) Build the Kedro project.** Create a new Kedro project next to the notebook:
 
 ```shell
 cd lab05
@@ -122,7 +129,7 @@ pip install -e .
 kedro pipeline create feature_engineering   # create as many pipelines as you like
 ```
 
-Then follow the recipe in [Kedro 101](./kedro/kedro_101.md#refactoring-notebooks). A few hints:
+Then turn each section of your notebook into a node, following the rest of the recipe in [Kedro 101](./kedro/kedro_101.md#refactoring-notebooks). A few hints:
 
 - Declare the two CSV files as datasets in `conf/base/catalog.yml`. Paths are relative to the project root, so from `lab05/coffee-pipeline` they are `../coffee_analytics/data/...`.
 - The notebook uses global variables (`FEATURE_COLUMNS`, `MISSING_COLUMNS`, `MODEL_NAME`) in several sections. Move them to `conf/base/parameters.yml` and pass them to the nodes that need them.
@@ -175,4 +182,4 @@ Pipelines make it easy to run things - but are we running the right things? Take
 
 ### Reference solution
 
-A reference solution can be found in [`solution/`](solution/): the notebook with sections ([`coffee_analytics_sol.ipynb`](coffee_analytics/coffee_analytics_sol.ipynb)), the Kedro project ([`solution/coffee-pipeline`](solution/coffee-pipeline)), and the generated Airflow DAG ([`solution/coffee-pipeline/airflow_dags`](solution/coffee-pipeline/airflow_dags)). Try it yourself first!
+A reference solution can be found in [`solution/`](solution/): the prepared notebook for Task 1a ([`solution/coffee_analytics_sol.ipynb`](solution/coffee_analytics_sol.ipynb)), the Kedro project ([`solution/coffee-pipeline`](solution/coffee-pipeline)), and the generated Airflow DAG ([`solution/coffee-pipeline/airflow_dags`](solution/coffee-pipeline/airflow_dags)). Try it yourself first!

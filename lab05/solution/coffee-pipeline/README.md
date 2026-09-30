@@ -2,7 +2,7 @@
 
 [![Powered by Kedro](https://img.shields.io/badge/powered_by-kedro-ffc900?logo=kedro)](https://kedro.org)
 
-Reference solution for the [lab 05 tasks](../../README_lab05.md#tasks): the [coffee analytics notebook](../../coffee_analytics/coffee_analytics_sol.ipynb) as a Kedro project, exported to Airflow.
+Reference solution for the [lab 05 tasks](../../README_lab05.md#tasks): the [coffee analytics notebook](../coffee_analytics_sol.ipynb) as a Kedro project, exported to Airflow.
 
 ## Pipelines
 
