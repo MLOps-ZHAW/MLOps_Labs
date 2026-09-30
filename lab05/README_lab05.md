@@ -129,13 +129,98 @@ pip install -e .
 kedro pipeline create feature_engineering   # create as many pipelines as you like
 ```
 
-Then turn each section of your notebook into a node, following the rest of the recipe in [Kedro 101](./kedro/kedro_101.md#refactoring-notebooks). A few hints:
+Then turn each section of your refactored notebook into a node, following the rest of the recipe in [Kedro 101](./kedro/kedro_101.md#refactoring-notebooks). A few hints:
 
-- Declare the two CSV files as datasets in `conf/base/catalog.yml`. Paths are relative to the project root, so from `lab05/coffee-pipeline` they are `../coffee_analytics/data/...`.
-- The notebook uses global variables (`FEATURE_COLUMNS`, `MISSING_COLUMNS`, `MODEL_NAME`) in several sections. Move them to `conf/base/parameters.yml` and pass them to the nodes that need them.
-- The notebook modifies `rev_df` in place (`inplace=True`, `rev_df[...] = ...`). Nodes should instead return new objects - otherwise you cannot tell from the pipeline which node depends on which data.
-- Load the embedding model _inside_ the embedding node; there is no need to put it into the catalog.
-- Declare every intermediate result (DataFrames, arrays, fitted models) in the catalog. You will need this for Task 2.
+1. **Declare the two CSV files as datasets** in `conf/base/catalog.yml`. Paths are relative to the project root, so from `lab05/coffee-pipeline` they are `../coffee_analytics/data/...`. For the CQI data:
+
+    ```python
+    # notebook (section "Data preprocessing")
+    cqi_df = pd.read_csv('../coffee_analytics/data/cqi_5_23.csv')
+    ```
+
+    ```yaml
+    # conf/base/catalog.yml
+    cqi_raw:
+      type: pandas.CSVDataset
+      filepath: ../coffee_analytics/data/cqi_5_23.csv
+    ```
+
+    The review data works the same way. A node that lists `cqi_raw` as an input receives the loaded DataFrame - no `pd.read_csv` in your code.
+
+2. **Move the global variables to parameters.** The notebook uses global variables (`FEATURE_COLUMNS`, `MISSING_COLUMNS`, `MODEL_NAME`) in several sections. Move them to `conf/base/parameters.yml` (or the `parameters_<pipeline>.yml` created by `kedro pipeline create`) and pass them to the nodes that need them. The function takes the value as a normal argument, the pipeline passes it in with the `params:` prefix. For example, the section "Missing value prediction":
+
+    ```python
+    # notebook (section "Missing value prediction")
+    MISSING_COLUMNS = ["Balance", "Uniformity", "Clean Cup", "Sweetness"]
+    rev_df[MISSING_COLUMNS] = xgb_model.predict(rev_df[["Aroma", "Flavor", "Aftertaste", "Acidity", "Body"]])
+    ```
+
+    ```yaml
+    # conf/base/parameters.yml
+    missing_columns: ["Balance", "Uniformity", "Clean Cup", "Sweetness"]
+    ```
+
+    ```python
+    # nodes.py - the constant becomes an argument, rev_df and xgb_model become inputs
+    def impute_missing(reviews: pd.DataFrame, imputer, missing_columns: list[str]) -> pd.DataFrame:
+        ...  # see hint 3: return a new DataFrame instead of modifying `reviews`
+
+    # pipeline.py
+    Node(
+        impute_missing,
+        inputs=["reviews", "imputer", "params:missing_columns"],
+        outputs="reviews_imputed",
+        name="impute_missing",
+    )
+    ```
+
+    The same applies to `FEATURE_COLUMNS` (the hard-coded list in `predict(...)` above) and `MODEL_NAME`.
+
+3. **Return new objects instead of modifying data in place.** The notebook modifies `rev_df` in place (`inplace=True`, `rev_df[...] = ...`). Nodes should instead return new objects - otherwise you cannot tell from the pipeline which node depends on which data. For example, the renaming step:
+
+    ```python
+    # notebook (section "Data preprocessing"): changes rev_df, returns nothing
+    rev_df.rename(columns={"aroma": "Aroma", ...}, inplace=True)
+
+    # nodes.py: leaves its input untouched and returns a new DataFrame
+    def preprocess_reviews(reviews_raw: pd.DataFrame) -> pd.DataFrame:
+        return reviews_raw.rename(columns={"aroma": "Aroma", ...})
+    ```
+
+    If you have to assign columns (`df[cols] = ...`), work on a copy: `df = df.copy()` first, then `return df`.
+
+4. **Load the embedding model _inside_ the embedding node**; there is no need to put it into the catalog. The node receives the model name as a parameter:
+
+    ```python
+    # notebook (section "Text embedding")
+    MODEL_NAME = "TaylorAI/gte-tiny"
+    ...
+    tokenizer = AutoTokenizer.from_pretrained(f'{MODEL_NAME}')
+    model = AutoModel.from_pretrained(f'{MODEL_NAME}')
+    ```
+
+    ```python
+    # nodes.py
+    def embed_descriptions(reviews: pd.DataFrame, model_name: str) -> np.ndarray:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModel.from_pretrained(model_name)
+        ...  # the embedding code from the notebook
+        return embeddings_reduced
+    ```
+
+5. **Declare every intermediate result** (DataFrames, arrays, fitted models) in the catalog. You will need this for Task 2. In the notebook, these are the variables that one section creates and a later section uses (e.g. the renamed `rev_df` or the fitted `xgb_model`) - they only exist in memory. Pick a dataset type that can store the object - `pandas.CSVDataset` for DataFrames, `pickle.PickleDataset` for anything else (arrays, fitted models, ...):
+
+    ```yaml
+    reviews:                       # output of preprocess_reviews (the renamed rev_df)
+      type: pandas.CSVDataset
+      filepath: data/02_intermediate/reviews.csv
+
+    imputer:                       # a fitted model (the first xgb_model)
+      type: pickle.PickleDataset
+      filepath: data/06_models/imputer.pkl
+    ```
+
+    The dataset name in the catalog must match the name you use in `inputs=` / `outputs=` in the pipeline.
 
 You are done when `kedro run` runs the whole pipeline and `kedro viz run` shows a graph with the steps from the diagram.
 
