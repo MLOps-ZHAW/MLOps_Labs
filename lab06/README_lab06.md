@@ -10,10 +10,25 @@ we will now look at the data itself: Storing, versioning - and generating more o
 
 - What data-centric MLOps is and how it's different from model-centric MLOps.
 - `git lfs` and why it alone is not enough to handle your datasets.
-- Data version control with `dvc`, a tool built on top of `git lfs`.
+- Data version control with `dvc`, a tool that works alongside `git` and stores the data outside the repository.
 - What synthetic data is, how you can synthesize your own datasets, and where its limits are.
 
-For each of the topics we have prepared separate sections, which you can find below.
+## Setup
+
+```shell
+conda env create -f lab06/env.yaml
+conda activate mlops-lab-06
+```
+
+The environment contains `dvc`, `albumentations`, the Hugging Face libraries and JupyterLab. You additionally need [Git LFS](https://git-lfs.com/) for the Git LFS part - see the installation instructions in [Git LFS](./git_lfs.md#installing).
+
+- **Work in your own repository.** The Git LFS and DVC parts ask you to create a new repository on GitHub (not a fork of this course repository). Use one repository for Git LFS and a second, fresh one for DVC - the DVC repository is used again in the augmentation notebook.
+- **Disk space:** the `102flowers` dataset is about 330 MB (compressed) and is downloaded twice (once for Git LFS, once for DVC). The synthetic data notebook downloads the Stable Diffusion XL Turbo model (about 7 GB on a GPU / Mac, where it runs in half precision, and about 14 GB on a CPU) and the `snacks` dataset (about 110 MB).
+- **Hardware:** everything except the synthetic data notebook runs on a laptop. Image generation with SDXL Turbo works on a CPU, but is slow (tens of seconds per image) and needs a lot of memory (the model alone takes about 14 GB of RAM); an NVIDIA GPU or an Apple Silicon Mac is much faster. If your laptop struggles, use your lab VM.
+
+## Lab parts
+
+For each of the topics we have prepared separate sections, which you can find below. Work through them in this order - the Git LFS and DVC parts use the same dataset, and the augmentation notebook continues with the DVC repository.
 
 |Topic|Link|
 |:----|:----|
@@ -47,7 +62,7 @@ You can learn more about `git-annex` on [its website](https://git-annex.branchab
 
 ### DVC alternatives
 
-`DVC` is of course not the only data versioning tool on the market. Here are two alternatives that might be of interested to you.
+`DVC` is of course not the only data versioning tool on the market. Here are two alternatives that might be of interest to you.
 
 - [Oxen](https://www.oxen.ai/): a lightning fast alternative to DVC, but less stable. Ask the lecturer for anecdotes. ;)
 - [LakeFS](https://lakefs.io/): a heavier alternative to DVC that scales to Petabytes of data. For when you are working with _a lot_ of data.
@@ -55,9 +70,9 @@ You can learn more about `git-annex` on [its website](https://git-annex.branchab
 ### Synthetic data
 
 Synthetic data is a hot topic right now. There are many libraries out there, which can be used to generate data, most of which are enterprise solutions
-with rather cumbersome open source versions. Below are a two excellent open source alternatives that also come with great documentation and links to papers.
+with rather cumbersome open source versions. Below are two excellent open source alternatives that also come with great documentation and links to papers.
 
 - [synthcity](https://github.com/vanderschaarlab/synthcity), a library for generating and evaluating synthetic tabular data for privacy, fairness and data augmentation.
 - [nbsynthetic](https://github.com/NextBrain-ai/nbsynthetic), a simple and robust tabular synthetic data generation library for small and medium size datasets.
 
-Generally, such libraries are limited when it comes to domain specific applications. Then it is often best to train your own generative models and come up with you own benchmarks. After all, you should know your data best!
+Generally, such libraries are limited when it comes to domain specific applications. Then it is often best to train your own generative models and come up with your own benchmarks. After all, you should know your data best!
