@@ -1,0 +1,8 @@
+# Settings for `kedro airflow create` (kedro-airflow plugin).
+# They end up in the generated DAG file - re-run `kedro airflow create` after changing them.
+default:
+  schedule: "@daily"
+  start_date: [2026, 1, 1]
+  catchup: false
+  retries: 1
+  retry_delay: 1 # minutes

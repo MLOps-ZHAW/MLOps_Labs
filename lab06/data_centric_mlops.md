@@ -1,6 +1,6 @@
 # A data-centric perspective on MLOps
 
-To understand _data-centric MLOps_, we must first understand _data-centric machine learning_: Data-centric machine learning refers to an approach the focus is primarily on the quality, diversity, and reliability of the data used for training models. In traditional ML approaches, much emphasis is placed on selecting the right algorithms and optimizing their parameters. While this is still important in data-centric ML, equal or greater emphasis is placed on the data itself. In a picture
+To understand _data-centric MLOps_, we must first understand _data-centric machine learning_: Data-centric machine learning refers to an approach where the focus is primarily on the quality, diversity, and reliability of the data used for training models. In traditional ML approaches, much emphasis is placed on selecting the right algorithms and optimizing their parameters. While this is still important in data-centric ML, equal or greater emphasis is placed on the data itself. In a picture:
 
 ![alt text](imgs/model_vs_data_centric_ml.png)
 (Image taken from [here](https://www.zenml.io/blog/its-the-data-silly-how-data-centric-ai-is-driving-mlops))
@@ -28,6 +28,6 @@ Here's a breakdown of the key aspects of data-centric machine learning:
 
 MLOps is mostly about data flowing from one stage to another! How does this inform our MLOps practices?
 First, we should probably be spending much more time on engineering our data pipelines (that's why we dedicated a whole lab to building them ;))!
-Second, a lot of downstream issues have their causes in the data. This means also means that we can and should address most issues early on in the process!
+Second, a lot of downstream issues have their causes in the data. This also means that we can and should address most issues early on in the process!
 
 Now that we have convinced you that MLOps is really mostly "DataOps", the next section will cover a foundation of any data-centric approach: Storing and versioning the data.
