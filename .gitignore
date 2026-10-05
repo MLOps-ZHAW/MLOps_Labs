@@ -22,9 +22,8 @@ lab01/cifar_net.pth
 hymenoptera*
 lab07/notebooks/data/
 
-# MLServer runtime folders (lab07)
-.metrics/
-.envs/
+# Exported ONNX model, created by lab07/triton/export_tinyvit.py
+lab07/model_repository/tinyvit/1/model.onnx
 
 # MLflow (lab03, lab07)
 mlruns/

@@ -1,0 +1,33 @@
+name: "tinyvit"
+backend: "onnxruntime"
+# Largest batch the model accepts. 0 would mean: the model does not support batching.
+max_batch_size: 8
+
+input [
+  {
+    name: "input"
+    data_type: TYPE_FP32
+    dims: [ 3, 224, 224 ]  # without the batch dimension
+  }
+]
+
+output [
+  {
+    name: "probabilities"
+    data_type: TYPE_FP32
+    dims: [ 21841 ]
+    label_filename: "labels.txt"  # enables the top-k classification output (class_count)
+  }
+]
+
+# How many copies of the model run in parallel, and on which device.
+instance_group [
+  {
+    count: 1
+    kind: KIND_CPU
+  }
+]
+
+# Number of CPU threads ONNX Runtime uses per model instance.
+# Keep (instances x threads) at or below the number of CPU cores of your machine.
+parameters { key: "intra_op_thread_count" value: { string_value: "4" } }

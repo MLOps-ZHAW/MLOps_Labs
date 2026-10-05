@@ -14,7 +14,7 @@ This is the repository for the labs/tutorials of a course about Machine Learning
 | 4 | CI/CD and testing for code and models | GitHub Actions, pytest, Deepchecks, CML | [Lab 04](lab04/README_lab04.md) |
 | 5 | From notebooks to pipelines to batch processing | Kedro, Airflow | [Lab 05](lab05/README_lab05.md) |
 | 6 | Data-centric MLOps | Git LFS, DVC, Albumentations, 🤗 Diffusers | [Lab 06](lab06/README_lab06.md) |
-| 7 | Deploying and protecting machine learning models | MLServer, Alibi Detect | [Lab 07](lab07/README_lab07.md) |
+| 7 | Deploying and protecting machine learning models | Triton Inference Server, ONNX, Alibi Detect | [Lab 07](lab07/README_lab07.md) |
 | | Creating a (shared) VM in GCP | Google Cloud | [GCP](GCP/README_GCP.md) |
 | | Vertex AI tutorial | Google Cloud Vertex AI | [VertexAI](VertexAI/README_VertexAI.md) |
 | | Example showing how to use Python packages with Jupyter Notebooks | Jupyter | [Sample](sample/README_sample.md) |
