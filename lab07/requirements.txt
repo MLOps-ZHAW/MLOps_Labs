@@ -1,10 +1,13 @@
 mlserver==1.7.1
 mlserver-huggingface==1.7.1
+uvloop<0.22
 timm==1.0.30
-torch==2.14.0
-transformers==4.53.3
+torch==2.8.0
+torchvision==0.23.0
+transformers==4.41.2
 foolbox==3.3.4
 dvc==3.67.1
 jupyterlab==4.6.4
+matplotlib
 tf-keras==2.21.0
 alibi-detect==0.13.0

@@ -7,7 +7,7 @@ wrapping everything in a FastAPI or Flask service.
 
 This is undoubtedly a common approach, but there are a few considerations and potential drawbacks:
 
-1. **Performance**: PyTorch is a powerful deep learning library, but it is not be the most efficient choice for serving predictions in a production environment, especially if the service needs to handle a large number of requests concurrently. While PyTorch can be optimized for inference, frameworks like [TensorFlow Serving](https://www.tensorflow.org/tfx/guide/serving) or [ONNX Runtime](https://onnxruntime.ai/) might offer better performance in certain scenarios.
+1. **Performance**: PyTorch is a powerful deep learning library, but it is not the most efficient choice for serving predictions in a production environment, especially if the service needs to handle a large number of requests concurrently. While PyTorch can be optimized for inference, frameworks like [TensorFlow Serving](https://www.tensorflow.org/tfx/guide/serving) or [ONNX Runtime](https://onnxruntime.ai/) might offer better performance in certain scenarios.
 
 2. **Resource Management**: Serving deep learning models requires careful resource management, especially memory usage and GPU utilization. In a production setting, it's essential to monitor resource usage and implement strategies such as batching to optimize performance and scalability. Purpose-built frameworks often already come with such tools built in.
 
@@ -31,7 +31,7 @@ You don't have to run this because we have already taken care of it for you in t
 `MLServer` requires three things from its users:
 
 - `model-settings.json`: This file provides information about the model.
-- `settings.json`: This file is for information related to the server.
+- `settings.json` (optional): This file is for information related to the server, e.g. ports or the number of workers. If it is missing or empty, the defaults are used.
 - `*.py`: A python script that declares how to load a model and how to make a prediction with it.
 
 In a picture:
@@ -84,11 +84,11 @@ Machine learning models generally expect their inputs to be passed as a particul
 
 #### Excursion: Codecs
 
-MLServer uses codecs to encapsulate the encoding and decoding logic for different data types. Codecs are an abstraction which know how to encode and decode high-level Python types. Here, MLServer follows the [Open Inference Protocol](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html), an industry-wide effort to provide a standardized protocol to communicate with different inference servers and orchestrating frameworks.
+MLServer uses codecs to encapsulate the encoding and decoding logic for different data types. Codecs are an abstraction which know how to encode and decode high-level Python types. Here, MLServer follows the [Open Inference Protocol](https://github.com/kserve/open-inference-protocol), an industry-wide effort to provide a standardized protocol to communicate with different inference servers and orchestrating frameworks.
 
-Unless you want to use custom data types (which is not recommended unless you have a really good reason), you don't have to worry about codecs. MLServer comes with a set of built-in codecs that cover most common data types. The `@decode_args` decorator does the heavily lifting for you. Based on the information provided in the method signature, it will automatically decode the request payload and pass it to the method. It also takes care of encoding the response.
+Unless you want to use custom data types (which is not recommended unless you have a really good reason), you don't have to worry about codecs. MLServer comes with a set of built-in codecs that cover most common data types. The `@decode_args` decorator does the heavy lifting for you. Based on the information provided in the method signature, it will automatically decode the request payload and pass it to the method. It also takes care of encoding the response.
 
-If you want to learn more about codecs, we recommend reading up on the [Open Inference Protocol](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html) and the [MLServer documentation on codecs](https://mlserver.readthedocs.io/en/latest/user-guide/content-type.html).
+If you want to learn more about codecs, we recommend reading up on the [Open Inference Protocol](https://github.com/kserve/open-inference-protocol) and the [MLServer documentation on codecs](https://docs.seldon.ai/mlserver/user-guide/content-type).
 
 #### `model-settings.json`
 
@@ -99,7 +99,7 @@ Here is an example config for our model:
 ```json
 {
     "name": "tinyvit",
-    "implementation": "serve-model.TinyViTModel",
+    "implementation": "serve-model.TinyViTModel"
 }
 ```
 
@@ -107,12 +107,12 @@ Here is an example config for our model:
 - `implementation` is the path where `MLServer` should look for the `MLModel` implementation.
 
 There are many more settings you can set, and we will see some more later.
-For a full list of options, refer to the [`MLServer` docs](https://mlserver.readthedocs.io/en/latest/reference/model-settings.html).
+For a full list of options, refer to the [`MLServer` docs](https://docs.seldon.ai/mlserver/api-reference/modelsettings).
 
 #### Running the server
 
 Now that we have everything, let's run the server.
-Open a terminal and navigate to the `lab07`. To start the server, run the following command:
+Open a terminal, activate the lab environment (`conda activate mlops-lab-07`) and navigate to the `lab07` directory. To start the server, run the following command:
 
 ```shell
 mlserver start tinyvit
@@ -152,7 +152,7 @@ sfully.
 curl -X GET http://localhost:8080/v2/models/tinyvit
 ```
 
-to check the `model-settings.json` we via the API.
+to fetch the metadata of the model we just deployed via the API.
 The output should look like the JSON below:
 
 ```json
@@ -187,8 +187,8 @@ Using the python library `requests`, the `inference_request` from above can be s
 ```python
 import requests
 
-
-res = requests.post(inference_url, json=inference_request.dict())
+inference_url = "http://localhost:8080/v2/models/tinyvit/infer"
+res = requests.post(inference_url, json=inference_request.model_dump())
 ```
 
 If you have never worked with `requests`, you can learn more in the package documentation.
@@ -203,7 +203,7 @@ res.json()
 #### Excursion: Where are the API docs?
 
 You might be wondering where the API documentation is. Strangely, the `MLServer` docs don't mention it. 🤔
-Well, there is actually no need for it! The API is standardized and follows the [Open Inference Protocol](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html). What's more, the API is self-documenting. You can find the API documentation by navigating to `http://localhost:8080/v2/docs` (if you changed the port MLServer is listening on, adjust it accordingly) in your browser.
+Well, there is actually no need for it! The API is standardized and follows the [Open Inference Protocol](https://github.com/kserve/open-inference-protocol). What's more, the API is self-documenting. You can find the API documentation by navigating to `http://localhost:8080/v2/docs` (if you changed the port MLServer is listening on, adjust it accordingly) in your browser.
 
 #### Your turn
 
@@ -212,8 +212,12 @@ send it to the server and inspect the response!
 
 _Hint: Use PIL to read the image and then convert it to a NumPy array._
 
+Keep the server running in its terminal, and run your client in a second terminal (or a notebook) with the lab environment activated.
+
 <details>
     <summary>Solution</summary>
+
+The solution is also available as [`tinyvit/inference.py`](./tinyvit/inference.py). Run it from the `lab07` directory (`python tinyvit/inference.py`), since it loads the image via a relative path.
 
 ```python
 from mlserver.codecs import NumpyCodec
@@ -231,7 +235,7 @@ inference_request = InferenceRequest(
     ]
 )
 
-res = requests.post(inference_url, json=inference_request.dict())
+res = requests.post(inference_url, json=inference_request.model_dump())
 print(res.json())
 ```
 
@@ -242,11 +246,11 @@ print(res.json())
 #### Another turn
 
 If you look at the output, more specifically `res.json()["outputs"][0]["data"]`,
-you see that the response is not very useful without the model labels.
+you see a list of 21,841 probabilities, one per ImageNet-22k class. That is not very useful without the class labels.
 
 Modify the service to return the top 5 labels.
 
-_Hint: You can find the labels in [`huggingface/label-files`](https://huggingface.co/datasets/huggingface/label-files/tree/main). The model was trained on ImageNet22k._
+_Hint: We provide the labels in [`tinyvit/imagenet-22k.json`](./tinyvit/imagenet-22k.json). It maps the class index (as a string) to the label. It was generated with `timm.data.ImageNetInfo("imagenet-22k")`. Careful: the `imagenet-22k-id2label.json` from [`huggingface/label-files`](https://huggingface.co/datasets/huggingface/label-files/tree/main) has 21,843 classes and does **not** match this model (the labels are shifted from index 9205 onwards)._
 
 _Another Hint: Use `torch.topk` to obtain the top 5 labels. You can find an example [here](https://huggingface.co/timm/tiny_vit_5m_224.dist_in22k#image-classification)._
 
@@ -294,54 +298,78 @@ class TinyViTModel(MLModel):
         return np.array(top5_classes)   
 ```
 
+This solution is also available as [`tinyvit/serve-model-v2.py`](./tinyvit/serve-model-v2.py). To serve it, point `implementation` in `tinyvit/model-settings.json` to the new file, i.e. `"implementation": "serve-model-v2.TinyViTModel"`, then restart the server (`Ctrl+C`, then `mlserver start tinyvit` again). MLServer only reads the settings and the code at startup.
+
+When you run the client again, the output now has `"datatype": "BYTES"` and `"shape": [5, 1]`, and `data` contains the five labels, e.g. `Burmese cat`, `domestic cat, house cat, ...`. The `NumpyCodec` turned the NumPy array of strings into bytes for you.
+
 </details>
 
 ### Interlude: MLServer Runtimes
 
-**The below example is NOT WORKING as of Nov 2025**
-
-**Please follow instead the transformer example provided at https://github.com/SeldonIO/MLServer/tree/master/docs/examples/huggingface**
-
 So far, we've been writing our own services. However, `MLServer` comes with a range of runtimes built-in.
-Inference runtimes allow you to define how your model should be used within `MLServer`.
+Inference runtimes allow you to define how your model should be used within `MLServer`, without writing a single line of Python.
 
-`MLServer` runtimes are packaged in their own python packages. You can find a list of runtimes in the [`MLServer` documentation](https://mlserver.readthedocs.io/en/latest/runtimes/index.html#included-inference-runtimes). Runtimes are configured using `model-settings.json`.
+`MLServer` runtimes are packaged in their own python packages (e.g. `mlserver-huggingface`, `mlserver-sklearn`, `mlserver-mlflow`). You can find a list of runtimes in the [`MLServer` documentation](https://docs.seldon.ai/mlserver/runtimes). Runtimes are configured using `model-settings.json` only.
 
-Why use runtimes? It's a lot faster. The service we wrote above, translates to the following `model-settings.json`:
+In the directory `distilgpt`, we have prepared an example that serves the [`distilgpt2`](https://huggingface.co/distilbert/distilgpt2) text generation model with the [HuggingFace runtime](https://docs.seldon.ai/mlserver/runtimes/huggingface).
+This is its `model-settings.json`:
 
 ```json
 {
-    "name": "tinyvit",
+    "name": "transformer",
     "implementation": "mlserver_huggingface.HuggingFaceRuntime",
     "parameters": {
         "extra": {
-            "task": "image-classification",
-            "pretrained_model": "tiny_vit_5m_224.dist_in22k"
+            "task": "text-generation",
+            "pretrained_model": "distilgpt2"
         }
     }
 }
 ```
 
-Another benefit is that these runtimes often come with additional features, such as performance optimizations.
-For instance, for the HuggingFace runtime, we can leverage the [Optimum library](https://huggingface.co/docs/optimum/index) using just a single simple config flag:
+- `implementation` now points to the runtime shipped with `mlserver-huggingface` instead of our own class.
+- `task` is the [`transformers` pipeline task](https://huggingface.co/docs/transformers/main_classes/pipelines) to run.
+- `pretrained_model` is the model ID on the Hugging Face Hub.
+
+Stop the TinyViT server first (`Ctrl+C`), since both servers use port 8080. Then, from the `lab07` directory, run:
+
+```shell
+mlserver start distilgpt
+```
+
+The first start downloads the model (about 350 MB). You can ignore the warning that the model name differs from the folder name.
+Once the model is loaded, send a request from a second terminal with the provided client [`distilgpt/inference.py`](./distilgpt/inference.py):
+
+```shell
+python distilgpt/inference.py
+```
+
+The client continues the prompt `"this is a test"`. Have a look at the request in `inference.py`: this time, we do not use a codec but write the Open Inference Protocol request by hand. The prompt is sent as a `BYTES` tensor, and the runtime returns the pipeline output as a JSON string, which we parse with `json.loads`. Since the model samples its output, you get a different text every time.
+
+Another benefit of runtimes is that they often come with additional features, such as performance optimizations.
+For instance, for the HuggingFace runtime, we can leverage the [Optimum library](https://huggingface.co/docs/optimum/index) with a single config flag. With `"optimum_model": true`, the model is exported to ONNX when it is loaded and then runs on [ONNX Runtime](https://onnxruntime.ai/):
 
 ```json
 {
-    "name": "tinyvit",
+    "name": "transformer",
     "implementation": "mlserver_huggingface.HuggingFaceRuntime",
     "parameters": {
         "extra": {
-            "task": "image-classification",
-            "pretrained_model": "tiny_vit_5m_224.dist_in22k",
+            "task": "text-generation",
+            "pretrained_model": "distilgpt2",
             "optimum_model": true
         }
     }
 }
 ```
 
+Try it out! Expect the server to take noticeably longer to start, because of the ONNX export. (On some machines, ONNX Runtime prints red `pthread_setaffinity_np failed` messages. They are harmless.)
+
 If runtimes are so great, why would we not want to use them?
-Well, there are frameworks that are not supported, e.g. PyTorch or Tensorflow (unless the model also is compatible with huggingface). Also, if you run the TinyViT model using the HuggingFace runtime,
-you will get the response you obtained in the first version of the service. However, if you want to customize the output, you have to write your own service.
+
+- **Only supported models work.** The HuggingFace runtime can only serve models that the `transformers` `pipeline` API can load. Our TinyViT model is a `timm` checkpoint. If you try to serve it with the HuggingFace runtime (`"task": "image-classification"`, `"pretrained_model": "timm/tiny_vit_5m_224.dist_in22k"`), the model fails to load.
+- **No control over the output.** Even if it worked, you would get the raw pipeline output. If you want to customize the response (like the top 5 labels above), you have to write your own service.
+- **Dependency constraints.** Runtimes pin the versions of the libraries they wrap. For example, `mlserver-huggingface` 1.7.1 only works with `transformers<4.42` and `torch<2.9`, which is why this lab's environment uses these older versions.
 
 ### Scaling our service
 
@@ -358,7 +386,7 @@ This enables `MLServer` to scale beyond a single Python interpreter.
 ![Parallel inference](./imgs/parallel-inference.svg)
 
 By default, `MLServer` spins up a pool with a single worker. To change this, we can set the `parallel_workers` field in
-`settings.json`. This field controls the size of the inference pool.
+[`tinyvit/settings.json`](./tinyvit/settings.json), which holds the server-wide settings (it is currently empty, i.e. all defaults). This field controls the size of the inference pool.
 
 ```json
 {
@@ -369,9 +397,9 @@ By default, `MLServer` spins up a pool with a single worker. To change this, we 
 Setting `parallel_workers` to `N > 0`, will create a pool with `N` workers. `N = 0` disables the parallel inference feature
 and all inference will happen within the main `MLServer` process.
 
-Keep in mind that there is no free lunch! The main `MLServer` process and the inference pool worker workers communicate via an
+Keep in mind that there is no free lunch! The main `MLServer` process and the inference pool workers communicate via an
 Inter-Process Communication protocol. This introduces overhead into the system. You can learn more about Parallel Inference in the
-[`MLServer` documentation](https://mlserver.readthedocs.io/en/latest/user-guide/parallel-inference.html#user-guide-parallel-inference--page-root).
+[`MLServer` documentation](https://docs.seldon.ai/mlserver/user-guide/parallel-inference).
 
 #### Adaptive batching
 
@@ -383,10 +411,12 @@ Why is this useful? There are two main reasons:
 
 Again, there is no free lunch. These benefits only scale up to a certain point. This point is determined by the infrastructure, the model, the machine learning framework - and likely many other factors. As such, it is imperative to experiment with the settings to find the optimal configuration for your use case.
 
-To enable adaptive batching, you can set the `max_batch_size` and `max_batch_time` fields in `settings.json`.
+Adaptive batching is configured per model. To enable it, set the `max_batch_size` and `max_batch_time` fields in `model-settings.json` (not `settings.json`):
 
 ```json
 {
+    "name": "tinyvit",
+    "implementation": "serve-model.TinyViTModel",
     "max_batch_size": 4,
     "max_batch_time": 0.1
 }
@@ -395,31 +425,45 @@ To enable adaptive batching, you can set the `max_batch_size` and `max_batch_tim
 - **`max_batch_size`**: The maximum number of requests that can be batched together. `N > 1` enables adaptive batching. `N = 1` or `N = 0` disables adaptive batching.
 - **`max_batch_time`**: The maximum time `MLServer` will wait for a batch to fill up before processing the batch. The expected value is in seconds. `T > 0` will wait `T` seconds at most. `T = 0` disables adaptive batching.
 
+Note that batching changes what your `predict` method receives: MLServer concatenates the inputs of the batched requests along their first dimension and splits the outputs again along the first dimension. Our TinyViT service assumes that `payload` is exactly one image. With adaptive batching enabled, four concurrent requests with the cat image arrive as one "image" of four stacked cats, and every client gets back garbage (e.g. an output of shape `[1280, 21841]`), still with HTTP status 200! A service that supports batching has to handle a batch of inputs and return one output row per input. Always test your service with concurrent requests before enabling batching.
+
 ### Packaging up a service and shipping it
 
 We can go one step further and package our service into a Docker container. This allows us to ship our service to any environment that supports Docker.
 
-To do this, all we need is a `requirements.txt` file. This file should contain all the dependencies required to run our service. In our case, we can simply export the `env.yaml` file we used to create our environment and add it to `lab07/tinyvit`.
+For this, you need [Docker](https://docs.docker.com/get-started/get-docker/) installed and running.
+`MLServer` builds the image on top of its own base image, which already contains `mlserver` itself. All we have to add is a `requirements.txt` file (or a conda `environment.yaml`) in the model directory that lists the additional dependencies of our service.
+Create `lab07/tinyvit/requirements.txt` with the following content:
 
-```shell
-conda list -e > requirements.txt
+```text
+timm==1.0.30
+torch==2.8.0
+pillow
 ```
 
-Then, use `mlserver build` to build the Docker image.
+Keep this list minimal: everything in it ends up in the image. (Exporting your whole lab environment, e.g. with `pip freeze`, would also work, but would add JupyterLab, DVC and many other packages the service does not need.)
+
+Then, from the `lab07` directory, use `mlserver build` to build the Docker image.
 
 ```shell
 mlserver build tinyvit/ -t tinyvit
 ```
 
 where `tinyvit/` is the path to the directory containing the `model-settings.json` and `serve-model.py` files.
-`-t` is the tag for the Docker image.
+`-t` is the tag for the Docker image. To run the container and expose the REST API on port 8080, use
+
+```shell
+docker run -it --rm -p 8080:8080 tinyvit
+```
+
+and send requests to it just like before. (Note that the container downloads the model weights on startup, as our `load()` method pulls them from the Hugging Face Hub. In production, you would rather bake the weights into the image or load them from a model registry.)
 
 What do we do with the Docker image? We can run it locally, push it to a container registry, or deploy it to a cloud provider.
 Even better, we can leverage some of the most popular Kubernetes serving frameworks to scale our service beyond a single machine!
-We won't go into the details of how to do this in this lab, but you can find more information in the [`MLServer` documentation](https://mlserver.readthedocs.io/en/latest/user-guide/deployment/index.html). Maybe this is something you want to explore in your own projects. ;)
+We won't go into the details of how to do this in this lab, but you can find more information in the [`MLServer` documentation](https://docs.seldon.ai/mlserver/user-guide/deployment). Maybe this is something you want to explore in your own projects. ;)
 
 ### Monitoring and logging
 
-`MLServer` comes with built-in support for monitoring and logging. You can access metrics like request latency, request throughput, and more via a metrics API endpoint.
+`MLServer` comes with built-in support for monitoring and logging. You can access metrics like request latency, request throughput, and more via a metrics API endpoint. By default, it is served on a separate port: while your server is running, open `http://localhost:8082/metrics` (you saw this URL in the startup log).
 
-This endpoint serves data in what is known as the [`OpenMetrics`-format](https://openmetrics.io/). There are many tools that can consume this format, such as Prometheus and Grafana. We won't go into the details of how to set up these tools in this lab, but you can find more information in the [`MLServer` documentation](https://mlserver.readthedocs.io/en/latest/user-guide/metrics/index.html). Maybe this is again something for your own projects. :D
+This endpoint serves data in what is known as the [`OpenMetrics`-format](https://openmetrics.io/). There are many tools that can consume this format, such as Prometheus and Grafana. We won't go into the details of how to set up these tools in this lab, but you can find more information in the [`MLServer` documentation](https://docs.seldon.ai/mlserver/user-guide/metrics). Maybe this is again something for your own projects. :D

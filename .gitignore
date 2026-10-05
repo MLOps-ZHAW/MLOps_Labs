@@ -22,6 +22,10 @@ lab01/cifar_net.pth
 hymenoptera*
 lab07/notebooks/data/
 
+# MLServer runtime folders (lab07)
+.metrics/
+.envs/
+
 # MLflow (lab03, lab07)
 mlruns/
 mlartifacts/

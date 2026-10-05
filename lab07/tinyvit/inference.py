@@ -13,6 +13,6 @@ inference_request = InferenceRequest(
     ]
 )
 
-res = requests.post(inference_url, json=inference_request.dict())
+res = requests.post(inference_url, json=inference_request.model_dump())
 print(res.json())
 
