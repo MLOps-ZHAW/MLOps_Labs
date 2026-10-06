@@ -1,0 +1,15 @@
+# Quality criteria that exist in both datasets
+feature_columns: ["Aroma", "Flavor", "Aftertaste", "Acidity", "Body"]
+# Quality criteria that are missing in the review data and predicted from the CQI data
+missing_columns: ["Balance", "Uniformity", "Clean Cup", "Sweetness"]
+
+embedding:
+  model_name: TaylorAI/gte-tiny
+  description_columns: ["desc_1", "desc_2", "desc_3"]
+  batch_size: 64
+  # fraction of variance kept by the PCA
+  pca_components: 0.67
+
+rating_model:
+  test_size: 0.2
+  random_state: 42
