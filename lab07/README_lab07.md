@@ -25,7 +25,7 @@ In the first half, we will be using NVIDIA's open-source [Triton Inference Serve
 
 ## Setup
 
-**Before the lab**, install [Docker](https://docs.docker.com/get-started/get-docker/) (or Podman) and pull the Triton image. It is large (about 9 GB download, 16 GB on disk), so don't do this over a slow connection during the lab:
+**Before the lab**, install [Docker](https://docs.docker.com/get-started/get-docker/) (or Podman) and pull the Triton image. It is large (about 9 GB download, 16 GB on disk):
 
 ```shell
 docker pull nvcr.io/nvidia/tritonserver:26.09-py3

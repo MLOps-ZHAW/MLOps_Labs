@@ -42,9 +42,11 @@ Triton runs as a Docker container. By default it listens on three ports:
 |8001|gRPC API|
 |8002|Prometheus metrics|
 
-We use the image `nvcr.io/nvidia/tritonserver:26.09-py3` (Triton 2.73.0). If you haven't pulled it yet (see the [README](./README_lab07.md#setup)), do it now - it is large.
+We use the image `nvcr.io/nvidia/tritonserver:26.09-py3` (Triton 2.73.0). If you haven't pulled it yet (see the [README](./README_lab07.md#setup)), do it now.
 
-In this part, we will deploy a [TinyViT](https://huggingface.co/timm/tiny_vit_5m_224.dist_in22k) vision transformer that was trained on `ImageNet-22k` (21,841 classes):
+In this part, we will deploy a [TinyViT](https://huggingface.co/timm/tiny_vit_5m_224.dist_in22k) vision transformer that was trained on `ImageNet-22k` (21,841 classes). It comes from [timm](https://huggingface.co/docs/timm) (PyTorch Image Models), a library of pretrained computer vision models. `timm.create_model("tiny_vit_5m_224.dist_in22k")` returns a regular PyTorch `nn.Module`. The name encodes the architecture (TinyViT, ~5M parameters, 224x224 input) and the weights (distilled on ImageNet-22k). The weights are hosted on the Hugging Face Hub, and each model also ships its preprocessing configuration (resize, crop, normalization), which we will need in step 4.
+
+The steps are:
 
 1. Export the model to ONNX.
 2. Write the model configuration.

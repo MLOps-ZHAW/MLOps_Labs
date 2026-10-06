@@ -16,9 +16,9 @@ OUTPUT_PATH = Path(__file__).parent.parent / "model_repository" / "tinyvit" / "1
 
 def main():
     model = timm.create_model(MODEL_NAME, pretrained=True)
-    model.eval()
     # Add the softmax to the exported graph, so that Triton returns probabilities.
     model = torch.nn.Sequential(model, torch.nn.Softmax(dim=1))
+    model.eval()
 
     dummy_input = torch.randn(2, 3, 224, 224)
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
