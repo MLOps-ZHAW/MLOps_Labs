@@ -34,7 +34,9 @@ The key ideas:
 - **Standardized APIs.** Triton implements the [Open Inference Protocol](https://github.com/kserve/open-inference-protocol) (also known as the KServe v2 protocol) over HTTP and gRPC. The same protocol is spoken by KServe, Seldon and others, so clients are portable between servers.
 - **Built-in scaling and monitoring**: multiple model instances, dynamic batching, model pipelines (ensembles), and Prometheus metrics.
 
-Triton runs as a Docker container. By default it listens on three ports:
+Triton runs as a container. In this lab we use [Podman](https://podman.io/) in the commands, but you can use Docker just as well: the commands are the same, just replace `podman` with `docker`.
+
+By default, Triton listens on three ports:
 
 |Port|Purpose|
 |:---|:------|
@@ -124,7 +126,7 @@ The full reference of all options is in the [model configuration docs](https://d
 Start Triton and mount the model repository into the container:
 
 ```shell
-docker run --rm -it -p 8000:8000 -p 8001:8001 -p 8002:8002 --shm-size=1g \
+podman run --rm -it -p 8000:8000 -p 8001:8001 -p 8002:8002 --shm-size=1g \
   -v "$(pwd)/model_repository:/models" \
   nvcr.io/nvidia/tritonserver:26.09-py3 \
   tritonserver --model-repository=/models --model-control-mode=explicit --load-model=tinyvit
@@ -139,7 +141,7 @@ The repository contains two more models (`preprocess` and `tinyvit_pipeline`) th
 Each `-p` option maps a port on your machine (the host) to a port inside the container: `-p <host port>:<container port>`. Inside the container, Triton always listens on 8000, 8001 and 8002. If these ports are already taken on your machine (e.g. by another service or another user on a shared server), keep the container ports and change only the host ports:
 
 ```shell
-docker run --rm -it -p 9000:8000 -p 9001:8001 -p 9002:8002 --shm-size=1g \
+podman run --rm -it -p 8600:8000 -p 8601:8001 -p 8602:8002 --shm-size=1g \
   -v "$(pwd)/model_repository:/models" \
   nvcr.io/nvidia/tritonserver:26.09-py3 \
   tritonserver --model-repository=/models --model-control-mode=explicit --load-model=tinyvit
@@ -147,18 +149,18 @@ docker run --rm -it -p 9000:8000 -p 9001:8001 -p 9002:8002 --shm-size=1g \
 
 Triton itself doesn't know about this mapping, so its log still says `0.0.0.0:8000` etc. From your machine, however, the server is now reachable on the host ports. In the rest of the lab, replace:
 
-- `localhost:8000` (HTTP) with `localhost:9000`, e.g. in the `curl` commands and the code snippets,
-- `localhost:8001` (gRPC) with `localhost:9001`,
-- `localhost:8002` (metrics) with `localhost:9002`.
+- `localhost:8000` (HTTP) with `localhost:8600`, e.g. in the `curl` commands and the code snippets,
+- `localhost:8001` (gRPC) with `localhost:8601`,
+- `localhost:8002` (metrics) with `localhost:8602`.
 
 The scripts in `triton/` read the HTTP address from the environment variable `TRITON_URL` (default `localhost:8000`). Set it once in each terminal where you run them:
 
 ```shell
-export TRITON_URL=localhost:9000       # Linux / macOS
-$env:TRITON_URL = "localhost:9000"     # Windows (PowerShell)
+export TRITON_URL=localhost:8600       # Linux / macOS
+$env:TRITON_URL = "localhost:8600"     # Windows (PowerShell)
 ```
 
-The same applies to the `docker run` command in step 5.
+The same applies to the `podman run` command in step 5.
 
 ### Check the server
 
@@ -340,13 +342,15 @@ RUN pip install --no-cache-dir --break-system-packages pillow==12.3.0
 Build the image:
 
 ```shell
-docker build -t tritonserver-lab07 triton/
+podman build -t tritonserver-lab07 triton/
 ```
+
+If the build fails at the `RUN` step with `sd-bus call: Interactive authentication required`, see [Troubleshooting](#troubleshooting).
 
 Stop the running server (`Ctrl+C`) and start the new image. This time without `--model-control-mode`, so Triton loads all models in the repository:
 
 ```shell
-docker run --rm -it -p 8000:8000 -p 8001:8001 -p 8002:8002 --shm-size=1g \
+podman run --rm -it -p 8000:8000 -p 8001:8001 -p 8002:8002 --shm-size=1g \
   -v "$(pwd)/model_repository:/models" \
   tritonserver-lab07 \
   tritonserver --model-repository=/models
@@ -447,7 +451,7 @@ There is no free lunch, and no universally best configuration: it depends on the
 
 ### Running on a GPU
 
-If you have an NVIDIA GPU (and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed), add `--gpus all` to the `docker run` command and change `kind: KIND_CPU` to `kind: KIND_GPU`. When you combine a GPU with dynamic batching, also add
+If you have an NVIDIA GPU (and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed), add `--gpus all` to the `podman run` command and change `kind: KIND_CPU` to `kind: KIND_GPU`. When you combine a GPU with dynamic batching, also add
 
 ```protobuf
 parameters { key: "cudnn_conv_algo_search" value: { string_value: "1" } }
@@ -484,7 +488,11 @@ So far, we have one server on one machine. To run models at scale, you need to d
 
 - **`failed to load all models` / `No module named 'PIL'`**: you started the official image without `--model-control-mode=explicit --load-model=tinyvit`. Either add these flags or use the image `tritonserver-lab07` from step 5. By default, Triton refuses to start if any model in the repository fails to load - the log tells you which one and why.
 - **A model is `UNAVAILABLE`**: read the error in the model status table. Typical causes are typos in `config.pbtxt`, names that don't match the ONNX model, or a missing `model.onnx` (did you run the export script?).
-- **`address already in use`**: another server (or an old Triton container) is still running on port 8000. Stop it, e.g. with `docker ps` and `docker stop <container id>`, or [use other ports](#using-other-ports).
+- **`address already in use`**: another server (or an old Triton container) is still running on port 8000. Stop it, e.g. with `podman ps` and `podman stop <container id>`, or [use other ports](#using-other-ports).
 - **The model directory is empty inside the container (Windows)**: use `-v "${PWD}/model_repository:/models"` in PowerShell and make sure Docker Desktop has access to the drive.
 - **Changes to `config.pbtxt` or `model.py` have no effect**: restart the server. Triton only reads the model repository when it starts (unless you enable [model control](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_management.html)).
-- **Podman instead of Docker**: all commands work with `podman` as well.
+- **`podman build` fails with `sd-bus call: Interactive authentication required`**: Podman manages the resources (CPU, memory) of its containers with Linux _cgroups_. By default, it asks systemd to set them up, which requires a systemd user session. When you are logged in via SSH (e.g. on a shared server), there often is no such session. `podman` itself notices this and falls back to managing the cgroups directly (`Falling back to --cgroup-manager=cgroupfs`), but the container started for the `RUN` step of the build still calls systemd and fails. The fix is to set the cgroup manager explicitly:
+
+  ```shell
+  podman --cgroup-manager=cgroupfs build -t tritonserver-lab07 triton/
+  ```
