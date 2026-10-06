@@ -467,7 +467,13 @@ perf_analyzer -m tinyvit --concurrency-range 1:16:4
 
 ## Step 7: Monitoring
 
-A model in production needs monitoring. Triton exposes metrics in the [Prometheus / OpenMetrics format](https://openmetrics.io/) on port 8002. While your server is running, open <http://localhost:8002/metrics>. Among many others, you will find:
+A model in production needs monitoring. Triton exposes metrics in the [Prometheus / OpenMetrics format](https://openmetrics.io/) on port 8002. While your server is running, open <http://localhost:8002/metrics>. If you work on a remote server, `localhost` in your browser refers to your own computer, not to the server. In that case, either forward the port (e.g. in the _Ports_ tab of VS Code) or query the metrics in a terminal on the server:
+
+```shell
+curl localhost:8002/metrics
+```
+
+Among many others, you will find:
 
 - `nv_inference_request_success` / `nv_inference_request_failure`: number of successful and failed requests per model.
 - `nv_inference_count` and `nv_inference_exec_count`: number of inferences and number of model executions. Their ratio is the average batch size - this is how `benchmark.py` computes it.
