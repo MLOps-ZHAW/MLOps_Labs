@@ -5,6 +5,8 @@ The preprocessing now happens on the server, so the client needs neither timm no
 Run from the lab07 directory (with Triton running):
     python triton/client_pipeline.py
 """
+import os
+
 import numpy as np
 import tritonclient.http as httpclient
 
@@ -14,7 +16,7 @@ with open("imgs/cat.jpg", "rb") as f:
 # A batch with one image. Triton's BYTES/STRING tensors are NumPy arrays of dtype object.
 batch = np.array([[image_bytes]], dtype=object)  # shape (1, 1)
 
-client = httpclient.InferenceServerClient(url="localhost:8000")
+client = httpclient.InferenceServerClient(url=os.environ.get("TRITON_URL", "localhost:8000"))
 
 inputs = [httpclient.InferInput("image", list(batch.shape), "BYTES")]
 inputs[0].set_data_from_numpy(batch)

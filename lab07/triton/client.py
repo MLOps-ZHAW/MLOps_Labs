@@ -3,6 +3,8 @@
 Run from the lab07 directory (with Triton running):
     python triton/client.py
 """
+import os
+
 import timm
 import tritonclient.http as httpclient
 from PIL import Image
@@ -15,7 +17,7 @@ transforms = timm.data.create_transform(**data_config, is_training=False)
 image = Image.open("imgs/cat.jpg").convert("RGB")
 batch = transforms(image).unsqueeze(0).numpy()  # shape (1, 3, 224, 224), float32
 
-client = httpclient.InferenceServerClient(url="localhost:8000")
+client = httpclient.InferenceServerClient(url=os.environ.get("TRITON_URL", "localhost:8000"))
 
 inputs = [httpclient.InferInput("input", list(batch.shape), "FP32")]
 inputs[0].set_data_from_numpy(batch)

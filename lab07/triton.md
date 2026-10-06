@@ -134,6 +134,34 @@ _On Windows (PowerShell), write the command on one line and use `-v "${PWD}/mode
 
 The repository contains two more models (`preprocess` and `tinyvit_pipeline`) that we will use in step 5. They need an extra Python package that is not part of the official image, so for now we tell Triton to load only `tinyvit` (`--model-control-mode=explicit --load-model=tinyvit`).
 
+### Using other ports
+
+Each `-p` option maps a port on your machine (the host) to a port inside the container: `-p <host port>:<container port>`. Inside the container, Triton always listens on 8000, 8001 and 8002. If these ports are already taken on your machine (e.g. by another service or another user on a shared server), keep the container ports and change only the host ports:
+
+```shell
+docker run --rm -it -p 9000:8000 -p 9001:8001 -p 9002:8002 --shm-size=1g \
+  -v "$(pwd)/model_repository:/models" \
+  nvcr.io/nvidia/tritonserver:26.09-py3 \
+  tritonserver --model-repository=/models --model-control-mode=explicit --load-model=tinyvit
+```
+
+Triton itself doesn't know about this mapping, so its log still says `0.0.0.0:8000` etc. From your machine, however, the server is now reachable on the host ports. In the rest of the lab, replace:
+
+- `localhost:8000` (HTTP) with `localhost:9000`, e.g. in the `curl` commands and the code snippets,
+- `localhost:8001` (gRPC) with `localhost:9001`,
+- `localhost:8002` (metrics) with `localhost:9002`.
+
+The scripts in `triton/` read the HTTP address from the environment variable `TRITON_URL` (default `localhost:8000`). Set it once in each terminal where you run them:
+
+```shell
+export TRITON_URL=localhost:9000       # Linux / macOS
+$env:TRITON_URL = "localhost:9000"     # Windows (PowerShell)
+```
+
+The same applies to the `docker run` command in step 5.
+
+### Check the server
+
 After a few seconds, you should see a table with the model status, and that the servers are running:
 
 ```text
@@ -456,7 +484,7 @@ So far, we have one server on one machine. To run models at scale, you need to d
 
 - **`failed to load all models` / `No module named 'PIL'`**: you started the official image without `--model-control-mode=explicit --load-model=tinyvit`. Either add these flags or use the image `tritonserver-lab07` from step 5. By default, Triton refuses to start if any model in the repository fails to load - the log tells you which one and why.
 - **A model is `UNAVAILABLE`**: read the error in the model status table. Typical causes are typos in `config.pbtxt`, names that don't match the ONNX model, or a missing `model.onnx` (did you run the export script?).
-- **`address already in use`**: another server (or an old Triton container) is still running on port 8000. Stop it, e.g. with `docker ps` and `docker stop <container id>`.
+- **`address already in use`**: another server (or an old Triton container) is still running on port 8000. Stop it, e.g. with `docker ps` and `docker stop <container id>`, or [use other ports](#using-other-ports).
 - **The model directory is empty inside the container (Windows)**: use `-v "${PWD}/model_repository:/models"` in PowerShell and make sure Docker Desktop has access to the drive.
 - **Changes to `config.pbtxt` or `model.py` have no effect**: restart the server. Triton only reads the model repository when it starts (unless you enable [model control](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_management.html)).
 - **Podman instead of Docker**: all commands work with `podman` as well.

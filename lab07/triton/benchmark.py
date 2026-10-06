@@ -7,6 +7,7 @@ Run from the lab07 directory (with Triton running):
     python triton/benchmark.py --concurrency 8 --requests 200
 """
 import argparse
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -22,7 +23,8 @@ def main():
     parser.add_argument("--requests", type=int, default=200, help="Total number of requests to send.")
     args = parser.parse_args()
 
-    client = httpclient.InferenceServerClient(url="localhost:8000")
+    url = os.environ.get("TRITON_URL", "localhost:8000")
+    client = httpclient.InferenceServerClient(url=url)
 
     # Every request contains a single (random) image. We only care about the speed here.
     batch = np.random.rand(1, 3, 224, 224).astype(np.float32)
@@ -40,7 +42,7 @@ def main():
 
     def send_request(_):
         if not hasattr(thread_local, "client"):
-            thread_local.client = httpclient.InferenceServerClient(url="localhost:8000")
+            thread_local.client = httpclient.InferenceServerClient(url=url)
         sent = time.perf_counter()
         thread_local.client.infer(args.model, inputs, outputs=outputs)
         return time.perf_counter() - sent
