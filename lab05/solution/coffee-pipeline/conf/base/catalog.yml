@@ -1,0 +1,39 @@
+# Raw data: we read the CSV files shipped with the lab instead of copying them into this project.
+# Relative paths are resolved against the project root, i.e. the directory you run `kedro` from.
+cqi_raw:
+  type: pandas.CSVDataset
+  filepath: ../../coffee_analytics/data/cqi_5_23.csv
+
+reviews_raw:
+  type: pandas.CSVDataset
+  filepath: ../../coffee_analytics/data/rev_5_23.csv
+
+# Every intermediate result is persisted. Datasets that are not declared here are kept in memory,
+# which breaks as soon as the nodes run as separate Airflow tasks.
+reviews:
+  type: pandas.CSVDataset
+  filepath: data/02_intermediate/reviews.csv
+
+imputer:
+  type: pickle.PickleDataset
+  filepath: data/06_models/imputer.pkl
+
+reviews_imputed:
+  type: pandas.CSVDataset
+  filepath: data/02_intermediate/reviews_imputed.csv
+
+description_embeddings:
+  type: pickle.PickleDataset
+  filepath: data/05_model_input/description_embeddings.pkl
+
+shared_latent_space:
+  type: pickle.PickleDataset
+  filepath: data/05_model_input/shared_latent_space.pkl
+
+rating_model:
+  type: pickle.PickleDataset
+  filepath: data/06_models/rating_model.pkl
+
+rating_metrics:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/rating_metrics.csv

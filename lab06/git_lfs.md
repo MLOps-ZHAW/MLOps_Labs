@@ -24,7 +24,9 @@ the official git repository.
 
 #### On Linux
 
-Debian and RPM packages are available from packagecloud, see the [Linux installation instructions](https://github.com/git-lfs/git-lfs/blob/main/INSTALLING.md).
+Debian and RPM packages are available from packagecloud, see the [Linux installation instructions](https://github.com/git-lfs/git-lfs/blob/main/INSTALLING.md). On Ubuntu / Debian, `sudo apt install git-lfs` also works.
+
+No `sudo` rights (e.g. on a shared machine)? Install it into the lab environment instead: `conda install -c conda-forge git-lfs`.
 
 #### On macOS
 
@@ -37,7 +39,7 @@ Alternatively, you can install a recent version of Git LFS from the [Chocolatey]
 
 ----
 
-Once you have the command line extension installed, open a terminal and set up Git LFS fro your user account.
+Once you have the command line extension installed, open a terminal and set up Git LFS for your user account.
 You do this by running the following command:
 
 ```raw
@@ -45,20 +47,26 @@ git lfs install
 ```
 
 Note that you only have to run this once!
-Next, we need a git repository and a big file. For the git repository, we ask you to create one on
-Github. For our big file, we will be using [`oxford_flowers102`](https://www.tensorflow.org/datasets/catalog/oxford_flowers102),
-a dataset of flowers, which we ask you to download from [here](https://www.robots.ox.ac.uk/%7Evgg/data/flowers/102/). We only need the images.
+Next, we need a git repository and a big file. For the git repository, we ask you to create a new, empty one on
+GitHub and clone it. For our big file, we will be using [`oxford_flowers102`](https://www.robots.ox.ac.uk/~vgg/data/flowers/102/),
+a dataset of 8189 flower images. We only need the images (`102flowers.tgz`, about 330 MB).
 
-Once you have downloaded the tarball, create a directory `data` in your new repository and move
-the tarball into the `data`.
+Create a directory `data` in your new repository and download the tarball into it:
+
+```shell
+mkdir data
+curl -L -o data/102flowers.tgz https://thor.robots.ox.ac.uk/flowers/102/102flowers.tgz
+```
 
 Checking in the tarball is almost identical to the normal `git` workflow:
 
 First, you have to tell git to use `lfs` to track this file:
 
 ```raw
-git lfs track data/*.tgz
+git lfs track "data/*.tgz"
 ```
+
+(The quotes matter: without them, your shell expands the pattern to the files that exist right now, and Git LFS only tracks those instead of every future `.tgz` file in `data/`.)
 
 This will create a file called `.gitattributes`. We have to check this file in:
 
@@ -78,6 +86,10 @@ git push origin main
 
 Note that this will take some time since we are uploading the whole file!
 
+To check that the tarball really went to LFS (and not into Git itself), run `git lfs ls-files`. It should list `data/102flowers.tgz`.
+
+> **Storage quotas.** GitHub (like most Git hosts) only includes a limited amount of LFS storage and bandwidth in free accounts, and every clone downloads the LFS files again. See [GitHub's documentation on Git LFS billing](https://docs.github.com/en/billing/concepts/product-billing/git-lfs) for the current limits. One `102flowers.tgz` is fine - but don't push several versions of it, and delete the repository when you are done with the lab.
+
 ----
 
 You have seen how you can add large files to git, but what does this look like on the other side?
@@ -95,12 +107,14 @@ Then, clone it!
 git clone <url of your git repo>
 ```
 
-This takes ages! It does, and that's why LFS is not
+This takes ages! It does, because `git clone` downloads every LFS file of the checked-out commit - that's why LFS is not
 the solution to all our data processing worries.
 
+(You can skip the download with `GIT_LFS_SKIP_SMUDGE=1 git clone <url>`, which only gives you the pointer files, and fetch individual files later with `git lfs pull --include "data/102flowers.tgz"`. But then you are managing the downloads by hand.)
+
 LFS is useful to add single large files, like a model snapshot, but
-it won't scale to datasets.
+it won't scale to datasets: every change to the tarball stores a complete new copy, you can only use the LFS storage of your Git host, and there is no easy way to download only the version or the part of the data you need.
 
 In the next part, we will take a look at `DVC`, a system built on top of Git that
-allows you to use any cloud storage to store your data and while keeping
+allows you to use any cloud storage to store your data while keeping
 references in Git.

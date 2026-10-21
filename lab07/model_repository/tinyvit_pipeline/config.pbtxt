@@ -1,0 +1,37 @@
+name: "tinyvit_pipeline"
+platform: "ensemble"
+max_batch_size: 8
+
+input [
+  {
+    name: "image"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+  }
+]
+
+output [
+  {
+    name: "probabilities"
+    data_type: TYPE_FP32
+    dims: [ 21841 ]
+    label_filename: "labels.txt"
+  }
+]
+
+ensemble_scheduling {
+  step [
+    {
+      model_name: "preprocess"
+      model_version: -1
+      input_map { key: "image" value: "image" }
+      output_map { key: "input" value: "preprocessed_image" }
+    },
+    {
+      model_name: "tinyvit"
+      model_version: -1
+      input_map { key: "input" value: "preprocessed_image" }
+      output_map { key: "probabilities" value: "probabilities" }
+    }
+  ]
+}

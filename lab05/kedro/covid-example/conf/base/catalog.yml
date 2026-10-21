@@ -1,0 +1,38 @@
+# The Data Catalog declares every dataset of the pipeline: where it lives and how to load / save it.
+# Nodes only refer to datasets by name - they never see file paths.
+# Docs: https://docs.kedro.org/en/stable/catalog-data/introduction/
+
+# Source: https://github.com/Ayushijain09/Regression-on-COVID-dataset
+covid_raw:
+  type: pandas.CSVDataset
+  filepath: data/01_raw/covid_daily_testing.csv
+
+covid_clean:
+  type: pandas.CSVDataset
+  filepath: data/02_intermediate/covid_clean.csv
+
+# Datasets that are not listed here are kept in memory only. That is fine for `kedro run`,
+# but not for Airflow, where every node runs as a separate task - so we persist everything.
+X_train:
+  type: pickle.PickleDataset
+  filepath: data/05_model_input/X_train.pkl
+
+X_test:
+  type: pickle.PickleDataset
+  filepath: data/05_model_input/X_test.pkl
+
+y_train:
+  type: pickle.PickleDataset
+  filepath: data/05_model_input/y_train.pkl
+
+y_test:
+  type: pickle.PickleDataset
+  filepath: data/05_model_input/y_test.pkl
+
+regressor:
+  type: pickle.PickleDataset
+  filepath: data/06_models/regressor.pkl
+
+coefficients:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/coefficients.csv

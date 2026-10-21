@@ -1,0 +1,40 @@
+[build-system]
+requires = [
+    "setuptools",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">=3.10"
+name = "covid_example"
+readme = "README.md"
+dynamic = [
+    "version",
+]
+dependencies = [
+    "kedro~=1.6.0",
+    "kedro-datasets[pandas-csvdataset,pickle-pickledataset]",
+    "scikit-learn",
+]
+
+[project.scripts]
+covid-example = "covid_example.__main__:main"
+
+[project.entry-points."kedro.hooks"]
+
+[tool.setuptools.dynamic.version]
+attr = "covid_example.__version__"
+
+[tool.setuptools.packages.find]
+where = [
+    "src",
+]
+namespaces = false
+
+[tool.kedro]
+package_name = "covid_example"
+project_name = "covid-example"
+kedro_init_version = "1.6.0"
+tools = "['None']"
+example_pipeline = "False"
+source_dir = "src"
