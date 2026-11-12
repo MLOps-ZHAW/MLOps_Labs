@@ -278,7 +278,7 @@ docker logs -f <container-name>
 ```
 (Ctrl+C here just stops watching the logs - it doesn't stop the pipeline.) Or just check progress in the console, as below.
 
-You can watch progress in the console under Vertex AI (Gemini Enterprise Agent Platform) → Pipelines, in your project. Each step's logs are available by clicking into it.
+You can watch progress in the console under Vertex AI (Agent Platform)→ Models → Pipelines, in your project. Each step's logs are available by clicking into it.
 
 Expected result - the three pipeline steps (fetch → train → deploy) running as a DAG:
 
